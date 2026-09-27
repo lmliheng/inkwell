@@ -121,7 +121,7 @@
 | **M1 认证授权域** | auth/email/github/totp、user、rbac、oauth、api-key 全量 46 接口 | ✅ 已完成：把线上库复制一份、原版 Node 起在 7002，两边各跑 214 个用例（`scripts/ref_diff.py`），**状态码 + 响应体键集合/键序逐字段一致 214/214**；`scripts/smoke_test.py` 20/20；浏览器逐页验证 M1 页面请求全 2xx |
 | **M2 内容域** | article、comment、blog、content（含 upload 到 OSS、ad、announcement）37 接口 | 同上；图片上传走通 OSS |
 | **M3 互动域** | social、dm、notification 25 接口 | 同上 |
-| **M4 系统域 + 前端联调** | systemmon、backup；三个前端指向网关跑通主要流程 | Admin 登录/文章/评论；Blog 列表/详情 |
+| **M4 系统域 + 前端联调** | systemmon、backup；三个前端指向网关跑通主要流程 | Admin 登录/文章/评论；Blog 列表/详情。**待定**：Admin 的手机端只做了「布局壳 + 全局兜底」一版响应式（侧边栏进抽屉、栅格单列、弹窗限宽，见 README「手机端」），列多的表格仍偏挤 —— 要么按页面隐藏次要列，要么给列表页单独做卡片式布局（接近两套前端），届时定 |
 | **M5 收尾（可选）** | agent 模块（DeepSeek 摘要）、对外 `/api/v1/*` 开放接口、按 schema 拆库 | 端到端回归 |
 
 ## 7. 目录结构

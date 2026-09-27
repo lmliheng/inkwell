@@ -29,6 +29,7 @@ WEB_PORT=31058 docker compose up -d web   # 临时换端口，临时值优先于
 - **为什么要“合并”**：仓库在 Windows 上编辑，git 里同时存在 `admin/` 与 `Admin/` 两条路径，Windows 不区分大小写所以是同一个目录；Linux 上 clone 后拆成两半且互补 ——
   `admin/` 是脚手架（`index.html`、`vite.config.ts`、`tsconfig*`、`main.ts`、`router/`、`store/`、`i18n/`、`composables/`、`asset/main.css`），
   `Admin/` 是业务（`package.json`、`.env.*`、`views/`、`components/`、`font/`）。`web/build.sh` 把两半合到 `web/src-app/` 再构建。
+- **别手删 `web/dist`**：它以 bind mount 挂进 nginx 容器，删掉目录会让容器里那份挂载指向**已删除的 inode**，症状是首页 **403**、容器内 `/usr/share/nginx/html` 为空（重建容器才恢复）。`web/build.sh` 已经改成「清空内容、保留目录」。
 - **API 基址**：前端统一用同源相对路径 `/api`（`web/build.sh` 写进 `.env.production`，并用 vite `define` 注入源码里那个没有 `VITE_` 前缀的 `import.meta.env.API_BASE`），
   由 nginx `location /api/` 去掉前缀转发到 `gateway:8088`。前端里不再出现 `127.0.0.1:7000`。
 - **访问控制**：`web/nginx.conf` 的 `allow/deny` 白名单（默认放行两个已知来源 IP + 本机 + compose 网桥），其余来源返回 403。
@@ -57,6 +58,24 @@ python3 scripts/admin_page_probe.py http://127.0.0.1 admin 123456
 **nginx 的一个坑（已修）**：`web/nginx.conf` 里原来写的是 `proxy_pass http://gateway:8088`，nginx 只在启动时解析一次域名；
 `docker compose up -d gateway` 重建网关后容器 IP 变了，nginx 还发往旧 IP，前端表现为 **502 / 全部接口异常**。
 现在改成 `resolver 127.0.0.11 valid=10s` + 变量式 `proxy_pass $auth_upstream`，网关重建后 nginx 自己会跟上（不必重启 web，重启也无害）。
+
+### 手机端（响应式）
+
+Admin 原来只按桌面宽度写：侧边栏固定 220px，在 iPhone 13（390×844）下占掉 **56%**，栅格与写死宽度的弹窗也会溢出。
+2026-09-28 做了一版响应式，断点 **768px**：
+
+| 层 | 文件 | 做法 |
+| :-- | :-- | :-- |
+| 布局壳 | `Admin/src/views/HomeView.vue` | 窄屏不渲染常驻侧边栏，改成左上角汉堡拉起的**左侧抽屉**（点菜单跳转后自动关闭）；顶栏压到 56px，标签栏与全屏/引导按钮收起；内容高度用 `100dvh`，免得 iOS 地址栏把底部顶出屏幕 |
+| 全局兜底 | `admin/src/asset/main.css` | 正文栅格单列（统计卡保持两列）、弹窗/消息框/抽屉宽度改成 `calc(100vw - …)`、工具条换行、卡片内边距收紧、`pre` 横向滚动 |
+| 页面级 | `UserProfile.vue`、`HomeSetting.vue` | 个人主页横幅竖排 + 字段单列；主页设置的选人框占满一行、头像 URL 独占一行 |
+
+桌面端（>768px）渲染与改动前一致。验证方式：`admin_page_probe.py` 全绿（接口层面无回归）+ playwright 在 390×844 下逐页截图、
+并走通「汉堡 → 抽屉 → 点菜单跳转 → 抽屉自动关闭」。
+
+已知不足：**列多的表格在手机上仍偏挤**（用户名这类长值会换行，次要列要横向滚动才看得到）。
+两种改法：① 按页面在窄屏隐藏次要列（改动小，但每页要写一点）；② 列表页单独做卡片式布局（改动大，接近「两套前端」）。
+`PLAN.md` 的 M4 里记着这个待定项。
 
 ## 和原版逐接口对照（M1 起的验收方式）
 

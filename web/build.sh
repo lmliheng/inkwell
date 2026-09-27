@@ -62,8 +62,13 @@ echo "==> vite build"
 npx vite build
 
 # 6) 产物拷到 web/dist（compose 里挂载的就是这个目录）
-rm -rf "$HERE/dist"
-cp -a "$OUT/dist" "$HERE/dist"
+# 注意：这里**不能** `rm -rf dist` 再 `cp`——compose 把 web/dist 以 bind mount 挂进
+# nginx 容器，删掉目录会让容器里那份挂载指向已删除的 inode，表现为首页 403、容器内 html 目录为空。
+# 正确做法是清空目录内容、保留目录本身。
+echo "==> 同步产物到 $HERE/dist（保留目录 inode，避免 bind mount 失效）"
+mkdir -p "$HERE/dist"
+find "$HERE/dist" -mindepth 1 -delete
+cp -a "$OUT/dist/." "$HERE/dist/"
 
 echo "==> 产物：$HERE/dist"
 ls -1 "$HERE/dist"
