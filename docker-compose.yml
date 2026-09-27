@@ -1,0 +1,160 @@
+# JScreator 后端（Java 微服务版）一键编排
+#
+#   docker compose up -d --build     # 首次：构建镜像 + 建库导入 dump + 起 5 个服务
+#   docker compose stop              # 停服务（省内存；数据卷保留，下次 start 即可）
+#   docker compose logs -f auth      # 看某个服务的日志
+#
+# 对外只暴露 gateway（宿主 7000，与原 Node 后端同端口，前端零改动）。
+name: jscreator
+
+x-app-build: &app-build
+  context: .
+  # 默认用运行镜像（本机先 mvn package，构建秒级完成）；
+  # 想在容器里从零编译就换成 deploy/Dockerfile.app
+  dockerfile: deploy/Dockerfile.runtime
+
+x-app-env: &app-env
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_NAME: ${DB_NAME:-fastweb_test}
+  DB_USER: ${DB_USER:-root}
+  DB_PASSWORD: ${DB_PASSWORD:?请在项目根目录 .env 里设置 DB_PASSWORD}
+  JWT_SECRET: ${JWT_SECRET:?请在项目根目录 .env 里设置 JWT_SECRET}
+  FRONTEND_URLS: ${FRONTEND_URLS:-http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8085,http://localhost:8085}
+  TZ: Asia/Shanghai
+  # 外部服务（M1 邮件/GitHub、M2 图片上传）。留空时与原版一致：走失败分支，不影响其余接口。
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-}
+  SMTP_SECURE: ${SMTP_SECURE:-}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  FROM_EMAIL: ${FROM_EMAIL:-}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+  GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+  OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+  OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: jscreator-mysql
+    restart: unless-stopped
+    command:
+      - --innodb-buffer-pool-size=128M
+      - --max-connections=80
+      - --performance-schema=OFF
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请在项目根目录 .env 里设置 DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-fastweb_test}
+      TZ: Asia/Shanghai
+    ports:
+      # 只绑本机，别把 3306 暴露到公网
+      - "127.0.0.1:${MYSQL_PORT:-3308}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 512m
+
+  # 五个服务共用同一镜像（构建一次），靠 command 选启动哪个 jar
+  gateway:
+    build: *app-build
+    image: jscreator-app:local
+    container_name: jscreator-gateway
+    restart: unless-stopped
+    command: ["gateway"]
+    environment:
+      <<: *app-env
+      AUTH_SERVICE_URL: http://jscreator-auth:8090
+      CONTENT_SERVICE_URL: http://jscreator-content:8091
+      SOCIAL_SERVICE_URL: http://jscreator-social:8092
+      SYSTEM_SERVICE_URL: http://jscreator-system:8093
+      JAVA_TOOL_OPTIONS: "-Xmx160m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -Xss512k"
+    ports:
+      - "${APP_PORT:-7000}:8088"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 320m
+
+  auth:
+    image: jscreator-app:local
+    pull_policy: never
+    container_name: jscreator-auth
+    restart: unless-stopped
+    command: ["auth"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 480m
+
+  content:
+    image: jscreator-app:local
+    pull_policy: never
+    container_name: jscreator-content
+    restart: unless-stopped
+    command: ["content"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 480m
+
+  social:
+    image: jscreator-app:local
+    pull_policy: never
+    container_name: jscreator-social
+    restart: unless-stopped
+    command: ["social"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx224m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 420m
+
+  system:
+    image: jscreator-app:local
+    pull_policy: never
+    container_name: jscreator-system
+    restart: unless-stopped
+    command: ["system"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx192m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 380m
+
+  # 后台前端（Admin 构建产物，见 web/build.sh）：nginx 托管静态文件 + /api 反代网关
+  web:
+    image: nginx:alpine
+    pull_policy: never
+    container_name: jscreator-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    volumes:
+      - ./web/dist:/usr/share/nginx/html:ro
+      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - gateway
+    mem_limit: 64m
+
+volumes:
+  mysql-data:

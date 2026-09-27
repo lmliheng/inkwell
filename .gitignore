@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+!.mvn/wrapper/*.jar
+.env
+.idea/
+*.iml
+.vscode/
+__pycache__/
+
+# 前端构建产物：web/build.sh 从 /root/JScreator 合并源码重新生成，不入库
+web/src-app/
+web/dist/

@@ -1,0 +1,17 @@
+# 镜像只需要 5 个 jar + 启动脚本，其余一概不要进上下文
+.git
+.gitignore
+.env
+.env.example
+README.md
+PLAN.md
+scripts/
+deploy/mysql/
+**/src/
+**/target/classes/
+**/target/*.original
+**/target/test-classes/
+**/target/maven-archiver/
+**/target/surefire-reports/
+**/target/generated-sources/
+**/target/generated-test-sources/

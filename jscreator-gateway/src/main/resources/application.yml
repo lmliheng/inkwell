@@ -1,0 +1,81 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: jscreator-gateway
+  cloud:
+    gateway:
+      # 全部按原路径透传：前端（Admin/Blog/IMG）零改动
+      routes:
+        # ---------- auth 服务：认证 / 用户 / 角色 / OAuth / API Key ----------
+        - id: auth-sys
+          uri: ${AUTH_SERVICE_URL:http://jscreator-auth:8090}
+          predicates:
+            - Path=/sys/login,/sys/register,/sys/profile,/resetPassword
+        - id: auth-email-github-totp
+          uri: ${AUTH_SERVICE_URL:http://jscreator-auth:8090}
+          predicates:
+            - Path=/email/**,/auth/github/**,/totp/**
+        - id: auth-oauth
+          uri: ${AUTH_SERVICE_URL:http://jscreator-auth:8090}
+          predicates:
+            - Path=/oauth/**
+        - id: auth-user-manage
+          uri: ${AUTH_SERVICE_URL:http://jscreator-auth:8090}
+          predicates:
+            - Path=/user-manage/**,/userInfo,/userInfo/**,/api-keys/**,/api-keys
+        - id: auth-rbac
+          uri: ${AUTH_SERVICE_URL:http://jscreator-auth:8090}
+          predicates:
+            - Path=/role/**,/permission/**
+        # 开放 API（/api/v1/*）走 API Key 鉴权，原版里归 openapi 模块，所以放 auth 服务；
+        # 注意它与 content 的 /article/** 不是一回事，别混到 content 上。
+        - id: auth-openapi
+          uri: ${AUTH_SERVICE_URL:http://jscreator-auth:8090}
+          predicates:
+            - Path=/api/v1/**
+
+        # ---------- content 服务：文章 / 评论 / 博客 / 上传 / 广告 / 公告 ----------
+        - id: content-api
+          uri: ${CONTENT_SERVICE_URL:http://jscreator-content:8091}
+          predicates:
+            - Path=/article/**,/comment/**,/blog/**,/upload/image
+        - id: content-ops
+          uri: ${CONTENT_SERVICE_URL:http://jscreator-content:8091}
+          predicates:
+            - Path=/ad/**,/announcement/**
+
+        # ---------- social 服务：关注 / 点赞 / 收藏 / 私信 / 通知 ----------
+        - id: social-api
+          uri: ${SOCIAL_SERVICE_URL:http://jscreator-social:8092}
+          predicates:
+            - Path=/social/**,/dm/**,/notification/**
+
+        # ---------- system 服务：监控 / 备份 ----------
+        - id: system-api
+          uri: ${SYSTEM_SERVICE_URL:http://jscreator-system:8093}
+          predicates:
+            - Path=/system-monitor/**,/system-monitor,/backup/**
+
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: ${FRONTEND_URLS:http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8085,http://localhost:8085}
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: info

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jscreator</groupId>
+        <artifactId>jscreator-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>jscreator-common</artifactId>
+    <name>jscreator-common</name>
+    <description>统一响应信封、异常、JWT、密码哈希（不依赖 Servlet / WebMVC，网关也可用）</description>
+
+    <dependencies>
+        <!-- 只用注解与基础类型，刻意不引 spring-boot-starter-web：
+             gateway 是 WebFlux，classpath 上出现 Spring MVC 会直接启动失败 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>
