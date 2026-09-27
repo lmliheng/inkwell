@@ -69,6 +69,11 @@ services:
       - --performance-schema=OFF
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
+      # 2M（默认 256K）：博客列表这类「GROUP BY 含 TEXT 列 + ORDER BY」的查询，
+      # 在统计信息不准时优化器会选到耗内存的计划，256K 直接报 1038 Out of sort memory。
+      # 实测 512K 即够，这里留余量；sort buffer 是按连接分配的，5 个服务各 5 条连接，
+      # 最坏 25 × 2M = 50M，仍在 mysql 容器 512M 的预算内。
+      - --sort-buffer-size=2M
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请在项目根目录 .env 里设置 DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME:-fastweb_test}

@@ -151,6 +151,15 @@ docker compose up -d
 > 要从零在容器里编译（CI/换机器）就用 `deploy/Dockerfile.app`：`docker build -t jscreator-app:local -f deploy/Dockerfile.app .`
 > （本机 2 核，容器内编译约十几分钟，所以日常用上面的运行镜像流程。）
 
+MySQL 的两个非默认参数（见 `docker-compose.yml` 的每个注释）：
+
+- `--sort-buffer-size=2M`（默认 256K）：`/blog/feed`、`/blog/hot` 这类「`GROUP BY` 里含 `content`
+  这种 TEXT 列 + `ORDER BY`」的查询，在统计信息不准时优化器会选到耗内存的计划，256K 下直接报
+  `1038 Out of sort memory`、接口变成 500。实测 512K 即够，留到 2M。
+- `deploy/mysql/init/02-analyze.sql`：首次初始化（数据目录为空）后自动 `ANALYZE` 全库，让统计信息
+  从一开始就是准的。**往一个已经存在的库导入 dump 之后不会自动执行**，这种情况请手动跑一次：
+  `docker exec jscreator-mysql mysql -uroot -p*** <库名> -e "ANALYZE TABLE ..."`（或对该库所有表）。
+
 日常运维：
 
 ```bash
@@ -228,9 +237,13 @@ M4（system 域）特有的差异：
 
 - `GET /system-monitor`
   - `data.system.arch`：Node 给 `x64`，JVM 给 `amd64`（同一颗 CPU 的两种叫法）。
+  - `data.system.hostname`：容器部署时是**容器主机名**（原版拿的是宿主机名）。
   - `data.process.nodeVersion`：键名照抄，值给的是 JVM 版本（`java.version`）—— 进程自身的信息本就无法跨运行时相同。
   - `data.cpu.usage`：与 Node 一样用「两次 `/proc/stat` 采样求差」，因此**首次调用返回 `null`**。
   - `data.system.uptime` 直接读 `/proc/uptime`，与 `os.uptime()` 一样是带小数的秒数。
+  - `data.memory.*` 读 `/proc/meminfo`（与 Node 的 `os.totalmem()/os.freemem()` 同源）。这里刻意没用
+    `OperatingSystemMXBean`：JDK 会按 cgroup 限制读，服务跑在容器里时拿到的是**容器配额**（例如 380M），
+    监控页显示的就不是服务器内存了；容器的 `/proc/meminfo` 默认是宿主机视图，读它才与原版一致。
 - `GET /system-monitor/api-stats`：原版是单体进程，列表里登记了全部 111 个接口的调用计数；微服务版统计的是 **system 服务自身**收到的请求（口径随服务拆分而变）。列表条目的字段名、按 `count` 降序、`count=0` 时 `avgTime` 为 `null`、`lastAt` 初始为 `null` 都与原版一致。
 - `GET /backup/download`：原版用 npm 的 `mysqldump` 包（纯 JS，不调 mysqldump 二进制）自己拼 SQL；这里同样不引入外部依赖，改用 JDBC 读 `SHOW CREATE TABLE` + `SELECT *` 生成可重复导入的 SQL —— 头部注释、`DROP TABLE IF EXISTS` + 建表、`utf8mb4_0900_ai_ci` → `utf8mb4_general_ci`、`SET FOREIGN_KEY_CHECKS` 包裹都对齐（因此运行镜像**不用装 mysql-client**）。两处刻意的不同：INSERT 用紧凑的单行写法（原版每个值占一行），以及原版是先把 zip 响应头发出去、中途出错只能断流，这里先生成完整产物、失败返回 500 信封。
 

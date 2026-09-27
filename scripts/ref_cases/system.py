@@ -8,12 +8,14 @@
     data.system.uptime         系统运行秒数，两侧采样时刻不同
     data.cpu.usage             两次 /proc/stat 采样求差，实时值（首次为 null）
     data.cpu.loadavg           实时负载
-    data.memory.free/used/usagePercent   实时内存
+    data.memory.free/used/usagePercent   实时内存（total 不 ignore，两侧都读 /proc/meminfo）
     data.process.*             pid / 版本号 / 进程运行时长 / 堆内存，进程不同必然不同
     data.timestamp             采样时刻
 
 **严格比对**的是同一台机器上两侧取值应当相同的字段：platform、osType、osRelease、cpuModel、
 cpuCores、memory.total、db.connected、db.version —— 它们能通过才说明字段取自同一语义。
+（memory.total 能严格比，是因为两侧都读 /proc/meminfo；JVM 若用 OperatingSystemMXBean 会按
+cgroup 读到容器配额，那样容器部署下这个字段就失真了 —— 实现里为此专门读的 /proc。）
 
 api-stats 的 data.list 整段 ignore：原版是单体进程，登记的是全部 111 个接口的调用计数；
 Java 版按域拆服务，统计口径天然不同（详见 README）。列表外的信封、键名、message 仍严格比对。

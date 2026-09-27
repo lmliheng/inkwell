@@ -96,20 +96,25 @@
 
 | 组件 | 镜像 | `-Xmx` | 预算 | **实测** |
 | :-- | :-- | --: | --: | --: |
-| gateway | `eclipse-temurin:17-jre` | 160m | ~180M | 171M |
-| auth | 同上 | 256m | ~320M | 160M |
-| content | 同上 | 256m | ~320M | 150M |
-| social | 同上 | 224m | ~280M | 146M |
-| system | 同上 | 192m | ~240M | 141M |
-| mysql | `mysql:8.0` | `innodb_buffer_pool_size=128M` | ~350M | 198M |
+| nacos | `nacos/nacos-server:v2.3.2` | 256m | ~600M | 546M |
+| gateway | `eclipse-temurin:17-jre` | 160m | ~180M | 229M |
+| auth | 同上 | 256m | ~320M | 224M |
+| content | 同上 | 256m | ~320M | 234M |
+| social | 同上 | 224m | ~280M | 209M |
+| system | 同上 | 192m | ~240M | 186M |
+| mysql | `mysql:8.0` | `innodb_buffer_pool_size=128M` | ~350M | 199M |
+| web | `nginx:alpine` | — | ~20M | 4M |
 | docker 引擎 | — | — | ~100M | — |
-| **合计** | | | **≈ 1.8G** | **≈ 966M + 引擎** |
+| **合计** | | | **≈ 2.4G** | **≈ 1.83G + 引擎** |
 
-实测比预算省了一半（`-XX:+UseSerialGC` + 小堆 + 连接池限 5），宿主机 3.8G / 无 swap 上跑得挺宽裕。
+实测比预算省（`-XX:+UseSerialGC` + 小堆 + 连接池限 5）：全栈起来后 `available` 仍有约 1G。
 
-留出约 1G 给系统和你现有的 penguin-server，**能跑但没富余**；因此 compose 里每个服务都写死 `mem_limit` 与 `-XX:MaxRAMPercentage`，避免某个服务把机器吃干净。
+留出约 1G 给系统和你现有的 penguin-server，**能跑但没富余**；因此 compose 里每个服务都写死 `mem_limit`，避免某个服务把机器吃干净。
 
-不引入 Nacos/Redis，就是为了这份预算表能成立。
+> 关于 Nacos：M0/M1 时为了这份预算表刻意没引入注册中心，网关路由指向写死的服务地址。
+> 后来按需求接入 Nacos 做服务发现（网关路由改成 `lb://<服务名>`），代价是约 550M 常驻内存；
+> 换来的是扩容/换端口/换机器时不用改配置、不用重启网关。依旧是单机 standalone + 内嵌存储，
+> 不额外依赖 MySQL。
 
 ---
 
@@ -119,10 +124,11 @@
 | :-- | :-- | :-- |
 | **M0 骨架** | 父 POM + common（响应/异常/JWT/拦截器）+ gateway + auth 骨架 + Dockerfile + compose + `.env.example` | ✅ 已完成：`docker compose ps` 六个容器全 Up，`scripts/smoke_test.py` **20 项断言全过**（注册/登录/profile/401/怪癖 500，跑完自动删掉临时账号），网关按路径分派到四个服务（未实现路径返回下游信封的 404） |
 | **M1 认证授权域** | auth/email/github/totp、user、rbac、oauth、api-key 全量 46 接口 | ✅ 已完成：把线上库复制一份、原版 Node 起在 7002，两边各跑 214 个用例（`scripts/ref_diff.py`），**状态码 + 响应体键集合/键序逐字段一致 214/214**；`scripts/smoke_test.py` 20/20；浏览器逐页验证 M1 页面请求全 2xx |
-| **M2 内容域** | article、comment、blog、content（含 upload 到 OSS、ad、announcement）37 接口 | 同上；图片上传走通 OSS |
-| **M3 互动域** | social、dm、notification 25 接口 | 同上 |
-| **M4 系统域 + 前端联调** | systemmon、backup；三个前端指向网关跑通主要流程 | Admin 登录/文章/评论；Blog 列表/详情。**待定**：Admin 的手机端只做了「布局壳 + 全局兜底」一版响应式（侧边栏进抽屉、栅格单列、弹窗限宽，见 README「手机端」），列多的表格仍偏挤 —— 要么按页面隐藏次要列，要么给列表页单独做卡片式布局（接近两套前端），届时定 |
-| **M5 收尾（可选）** | agent 模块（DeepSeek 摘要）、对外 `/api/v1/*` 开放接口、按 schema 拆库 | 端到端回归 |
+| **M2 内容域** | article、blog、comment、ad、announcement、upload 共 37 接口 | ✅ 已完成：对照原版 **251/251** 用例一致（`scripts/ref_cases/content.py`，连续三次从干净库重跑）。**未覆盖**：`/upload/image` 的成功分支要 OSS 密钥，本机没有，两侧都停在 500 失败分支 |
+| **M3 互动域** | social、dm、notification 25 接口 | ✅ 已完成：对照原版 **139/139** 用例一致 |
+| **M4 系统域** | systemmon（监控 / 接口统计）、backup、根健康检查 4 接口 | ✅ 已完成：对照原版 **9/9** 用例一致；备份产物解压后可完整恢复成同构同量的库（逐表行数一致） |
+| **Nacos 服务发现** | 五个服务注册、网关路由改 `lb://<服务名>` | ✅ 已完成：五服务注册成功，全量对照 **613/613**，冒烟 20/20 |
+| **M5 前端联调 + 收尾（可选）** | 三个前端指向网关跑通主要流程；agent 模块（DeepSeek 摘要）、对外 `/api/v1/*`、按 schema 拆库 | Admin 九页浏览器实测全 2xx、无 JS 报错；Blog/IMG 未跑。**待定**：Admin 手机端只做了「布局壳 + 全局兜底」一版响应式，列多的表格仍偏挤 |
 
 ## 7. 目录结构
 
@@ -150,6 +156,9 @@
 1. **部署目标机**：本机内存虽勉强够，但与你「省内存」的既定方针冲突；也可只产出代码 + compose，部署到别的机器。
 2. **外部依赖可用性**：**M1 的邮件/GitHub 逻辑已按原版实现并跑通对照**（未配密钥时走原版同样的失败分支），
    只差真密钥：`SMTP_*`/`FROM_EMAIL` 一填就能真发验证码，`GITHUB_CLIENT_ID/SECRET/CALLBACK_URL` 一填就能真走 GitHub 登录
-   （值走 `.env` → 容器环境变量，`docker compose up -d auth` 生效）。OSS AccessKey 仍是 M2 上传的前置。
+   （值走 `.env` → 容器环境变量，`docker compose up -d auth` 生效）。
+   **图片上传是唯一没实现完的分支**：`/upload/image` 的成功路径要阿里云 OSS 的 AccessKey，本机没有密钥，
+   两侧都停在 500 失败分支，所以这条 200 路径既没实现也没观测过（`UploadService.uploadToOss` 会明确报
+   「OSS 上传实现待补」，不会假装成功）。要补齐，按阿里 OSS 的 PUT 实现即可，bucket/region/对象路径已按原版写死。
 3. **agent 模块**：`src/modules/agent` 走 DeepSeek，属 AI 能力，建议放 M5（不阻塞主链路）。
 4. **旧 token 兼容**：必须做到，否则前端用户全部掉线。

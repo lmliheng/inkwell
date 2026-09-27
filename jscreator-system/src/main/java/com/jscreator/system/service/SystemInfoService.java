@@ -54,17 +54,10 @@ public class SystemInfoService {
     // ================= /system-monitor =================
 
     public Map<String, Object> monitor() {
-        com.sun.management.OperatingSystemMXBean os =
-                (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-
-        long totalMem = os.getTotalMemorySize();
-        long freeMem = os.getFreeMemorySize();
-        long usedMem = totalMem - freeMem;
-
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("system", systemInfo());
         data.put("cpu", cpuInfo());
-        data.put("memory", memoryInfo(totalMem, freeMem, usedMem));
+        data.put("memory", memoryInfo());
         data.put("process", processInfo());
         data.put("db", dbInfo());
         data.put("timestamp", ISO_MS.format(Instant.now()));
@@ -97,13 +90,63 @@ public class SystemInfoService {
         return m;
     }
 
-    private Map<String, Object> memoryInfo(long total, long free, long used) {
+    /**
+     * 内存取自 {@code /proc/meminfo}，与 Node 的 os.totalmem()/os.freemem() 同源。
+     *
+     * <p>为什么不用 {@code OperatingSystemMXBean.getTotalMemorySize()}：JDK 会按 cgroup 限制读，
+     * 服务跑在容器里时拿到的是**容器配额**（例如 380M）而不是服务器内存，监控页就失真了。
+     * 容器的 {@code /proc/meminfo} 默认就是宿主机的视图，读它才与原版一致。
+     */
+    private Map<String, Object> memoryInfo() {
+        long total;
+        long free;
+        long[] fromProc = readMemInfo();
+        if (fromProc != null) {
+            total = fromProc[0];
+            free = fromProc[1];
+        } else {
+            com.sun.management.OperatingSystemMXBean os =
+                    (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+            total = os.getTotalMemorySize();
+            free = os.getFreeMemorySize();
+        }
+        long used = total - free;
+
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("total", total);
         m.put("free", free);
         m.put("used", used);
         m.put("usagePercent", round1(total == 0 ? 0d : (used * 100d) / total));
         return m;
+    }
+
+    /** /proc/meminfo 的 MemTotal / MemFree（kB → 字节），对应 Node 的 os.totalmem()/os.freemem()。 */
+    private static long[] readMemInfo() {
+        Long total = null;
+        Long free = null;
+        for (String line : readLines("/proc/meminfo")) {
+            if (line.startsWith("MemTotal:")) {
+                total = kbToBytes(line);
+            } else if (line.startsWith("MemFree:")) {
+                free = kbToBytes(line);
+            }
+            if (total != null && free != null) {
+                return new long[]{total, free};
+            }
+        }
+        return null;
+    }
+
+    private static Long kbToBytes(String line) {
+        String[] parts = line.trim().split("\\s+");
+        if (parts.length < 2) {
+            return null;
+        }
+        try {
+            return Long.parseLong(parts[1]) * 1024L;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private Map<String, Object> processInfo() {
