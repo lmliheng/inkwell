@@ -62,6 +62,12 @@ spring:
           uri: lb://jscreator-system
           predicates:
             - Path=/system-monitor/**,/system-monitor,/backup/**
+        # 根路径的公开健康检查（原版 systemmon 模块里的 GET /）。放在最后，
+        # 只匹配「就是 /」这一个请求，不会吃掉其它路由。
+        - id: system-root
+          uri: lb://jscreator-system
+          predicates:
+            - Path=/
 
       globalcors:
         add-to-simple-url-handler-mapping: true

@@ -46,8 +46,11 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         boolean needLogin = AnnotatedElementUtils.hasAnnotation(method.getMethod(), RequireLogin.class)
                 || AnnotatedElementUtils.hasAnnotation(method.getBeanType(), RequireLogin.class);
-        boolean needAdmin = AnnotatedElementUtils.hasAnnotation(method.getMethod(), RequireAdmin.class)
-                || AnnotatedElementUtils.hasAnnotation(method.getBeanType(), RequireAdmin.class);
+        RequireAdmin adminRule = AnnotatedElementUtils.findMergedAnnotation(method.getMethod(), RequireAdmin.class);
+        if (adminRule == null) {
+            adminRule = AnnotatedElementUtils.findMergedAnnotation(method.getBeanType(), RequireAdmin.class);
+        }
+        boolean needAdmin = adminRule != null;
 
         if (!needLogin && !needAdmin) {
             return true;
@@ -59,7 +62,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (needAdmin) {
             Long role = roleLookup.roleIdOf(payload.id());
             if (role == null || role != 1L) {
-                reject(response, 403, "权限不足，仅管理员可操作");
+                reject(response, 403, adminRule.message());
                 return false;
             }
         }

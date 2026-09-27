@@ -185,6 +185,18 @@ mvn -DskipTests package
 java -jar jscreator-auth/target/jscreator-auth-1.0.0.jar     # 各服务单独起
 ```
 
+脚本 `scripts/dev_service.sh start <mod> <db> <port>` 会连隔离库、脱离当前会话起一个实例，方便与
+原版 Node 后端逐接口对照。**本机实例要关掉 Nacos 注册**：compose 里的 Nacos 只把控制台端口
+8848 映射到宿主，gRPC 端口（9848/9849）没映射，本机服务注册不上会直接启动失败：
+
+```bash
+SPRING_CLOUD_NACOS_DISCOVERY_ENABLED=false \
+  JAVA_TOOL_OPTIONS="-Xmx220m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC" \
+  scripts/dev_service.sh start system fastweb_m4dev 8105
+```
+
+（容器里不存在这个问题：五个服务与 nacos 在同一个 compose 网络里，走的是容器内的 9848。）
+
 ## 移植时必须守住的兼容性
 
 | 约定 | 说明 |
@@ -202,6 +214,16 @@ java -jar jscreator-auth/target/jscreator-auth-1.0.0.jar     # 各服务单独�
 - CORS：原版对不在白名单的 Origin 是「不回 CORS 头」，Spring 会直接 403；浏览器行为一致。
 - 时间字段：MySQL `DATETIME` 映射为 `LocalDateTime`，JSON 为 `2026-09-28T03:45:12`（Node 版为 UTC 的 `...Z`），浏览器按本地时间解析后显示一致。
 
+M4（system 域）特有的差异：
+
+- `GET /system-monitor`
+  - `data.system.arch`：Node 给 `x64`，JVM 给 `amd64`（同一颗 CPU 的两种叫法）。
+  - `data.process.nodeVersion`：键名照抄，值给的是 JVM 版本（`java.version`）—— 进程自身的信息本就无法跨运行时相同。
+  - `data.cpu.usage`：与 Node 一样用「两次 `/proc/stat` 采样求差」，因此**首次调用返回 `null`**。
+  - `data.system.uptime` 直接读 `/proc/uptime`，与 `os.uptime()` 一样是带小数的秒数。
+- `GET /system-monitor/api-stats`：原版是单体进程，列表里登记了全部 111 个接口的调用计数；微服务版统计的是 **system 服务自身**收到的请求（口径随服务拆分而变）。列表条目的字段名、按 `count` 降序、`count=0` 时 `avgTime` 为 `null`、`lastAt` 初始为 `null` 都与原版一致。
+- `GET /backup/download`：原版用 npm 的 `mysqldump` 包（纯 JS，不调 mysqldump 二进制）自己拼 SQL；这里同样不引入外部依赖，改用 JDBC 读 `SHOW CREATE TABLE` + `SELECT *` 生成可重复导入的 SQL —— 头部注释、`DROP TABLE IF EXISTS` + 建表、`utf8mb4_0900_ai_ci` → `utf8mb4_general_ci`、`SET FOREIGN_KEY_CHECKS` 包裹都对齐（因此运行镜像**不用装 mysql-client**）。两处刻意的不同：INSERT 用紧凑的单行写法（原版每个值占一行），以及原版是先把 zip 响应头发出去、中途出错只能断流，这里先生成完整产物、失败返回 500 信封。
+
 已知问题（**不属于本次移植范围**，与后端无关）：
 
 - Admin 的「角色管理」页一直是 **No Data**：`Admin/src/views/privateViews/RoleManage.vue:27` 读的是 `res.list`，
@@ -216,9 +238,10 @@ java -jar jscreator-auth/target/jscreator-auth-1.0.0.jar     # 各服务单独�
 | M0 骨架（网关 + auth 登录/注册/profile + 四服务拓扑 + compose） | ✅ 已完成 |
 | M1 认证授权域 46 接口（email/github/totp/user/rbac/oauth/api-key） | ✅ 已完成（对照原版 **214/214** 用例一致） |
 | Nacos 服务注册与发现（网关路由改 `lb://<服务名>`） | ✅ 已完成（214/214 无回归） |
+| M3 互动域 25 接口（social/dm/notification） | ✅ 已完成（对照原版 **139/139** 用例一致） |
+| M4 系统域 4 接口（监控 / 接口统计 / 备份 / 根健康检查） | ✅ 已完成（对照原版 **9/9** 用例一致） |
 | M2 内容域 37 接口 | ⬜ 待做 |
-| M3 互动域 25 接口 | ⬜ 待做 |
-| M4 系统域 + 前端联调 | ⬜ 待做 |
+| 前端整体联调 + 全栈容器验收 | ⬜ 待做（等 M2 完成） |
 | M5 agent 模块 / 对外 openapi / 拆库 | ⬜ 可选 |
 
 ### M1 交付了什么

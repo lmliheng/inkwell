@@ -10,7 +10,7 @@
     </parent>
     <artifactId>jscreator-system</artifactId>
     <name>jscreator-system</name>
-    <description>内容域：article / comment / blog / system（含上传、广告、公告），37 个接口</description>
+    <description>系统域：系统监控 / 接口统计 / 数据库备份 / 根健康检查，4 个接口</description>
     <dependencies>
         <!-- 服务注册/发现：Nacos（网关用 lb://<服务名> 路由，服务启动时自动注册） -->
         <dependency>
