@@ -214,6 +214,16 @@ SPRING_CLOUD_NACOS_DISCOVERY_ENABLED=false \
 - CORS：原版对不在白名单的 Origin 是「不回 CORS 头」，Spring 会直接 403；浏览器行为一致。
 - 时间字段：MySQL `DATETIME` 映射为 `LocalDateTime`，JSON 为 `2026-09-28T03:45:12`（Node 版为 UTC 的 `...Z`），浏览器按本地时间解析后显示一致。
 
+M2（内容域）特有的差异：
+
+- `POST /upload/image`：**上传成功那条分支尚未实现**。它要阿里云 OSS 的 AccessKey（原版走 ali-oss，
+  bucket `fast-node-server`、杭州 region、V4 签名），本机没有密钥，所以两侧都停在 HTTP 500 +
+  「上传失败，请检查 OSS 配置」—— 对照用例覆盖的是这条失败分支，以及 401（未登录）与
+  400（没选文件 / 类型不在白名单 / 超过 5MB）的校验分支。Java 侧 `jscreator-content` 的
+  `UploadService.uploadToOss` 在检测到密钥存在时会明确抛「OSS 上传实现待补」，**不会假装上传成功**；
+  要补齐这条分支，按阿里 OSS 的 PUT 实现即可（bucket/region/对象路径已按原版写死）。
+- `POST /article/ai-summary/regenerate/:id` 走 DeepSeek，`DEEPSEEK_API_KEY` 为空时与原版同样走失败分支。
+
 M4（system 域）特有的差异：
 
 - `GET /system-monitor`
@@ -238,10 +248,10 @@ M4（system 域）特有的差异：
 | M0 骨架（网关 + auth 登录/注册/profile + 四服务拓扑 + compose） | ✅ 已完成 |
 | M1 认证授权域 46 接口（email/github/totp/user/rbac/oauth/api-key） | ✅ 已完成（对照原版 **214/214** 用例一致） |
 | Nacos 服务注册与发现（网关路由改 `lb://<服务名>`） | ✅ 已完成（214/214 无回归） |
+| M2 内容域 37 接口（article/blog/comment/ad/announcement/upload） | ✅ 已完成（对照原版 **251/251** 用例一致） |
 | M3 互动域 25 接口（social/dm/notification） | ✅ 已完成（对照原版 **139/139** 用例一致） |
 | M4 系统域 4 接口（监控 / 接口统计 / 备份 / 根健康检查） | ✅ 已完成（对照原版 **9/9** 用例一致） |
-| M2 内容域 37 接口 | ⬜ 待做 |
-| 前端整体联调 + 全栈容器验收 | ⬜ 待做（等 M2 完成） |
+| 前端整体联调 + 全栈容器验收 | ⬜ 待做 |
 | M5 agent 模块 / 对外 openapi / 拆库 | ⬜ 可选 |
 
 ### M1 交付了什么

@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: jscreator-content
+  servlet:
+    multipart:
+      # 原版 multer 的上限就是 5MB；另外要惰性解析，超限异常才能在 handler 里被兜成 400（同原版文案）
+      max-file-size: 5MB
+      max-request-size: 6MB
+      resolve-lazily: true
   cloud:
     nacos:
       # 容器里由 compose 注入 NACOS_ADDR=nacos:8848；本机开发（scripts/dev_service.sh）默认连 127.0.0.1
