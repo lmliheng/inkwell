@@ -21,6 +21,8 @@ x-app-env: &app-env
   DB_PASSWORD: ${DB_PASSWORD:?请在项目根目录 .env 里设置 DB_PASSWORD}
   JWT_SECRET: ${JWT_SECRET:?请在项目根目录 .env 里设置 JWT_SECRET}
   FRONTEND_URLS: ${FRONTEND_URLS:-http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8085,http://localhost:8085}
+  # 服务注册/发现：网关按 lb://<服务名> 路由，服务启动时注册到这里
+  NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
   TZ: Asia/Shanghai
   # 外部服务（M1 邮件/GitHub、M2 图片上传）。留空时与原版一致：走失败分支，不影响其余接口。
   SMTP_HOST: ${SMTP_HOST:-}
@@ -36,6 +38,27 @@ x-app-env: &app-env
   OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
 
 services:
+  # 注册中心 / 配置中心。单机 standalone 模式用内嵌 Derby 存数据，不额外依赖 MySQL。
+  # 控制台与 gRPC 端口只绑本机（8848 控制台；9848/9849 是 2.x 的 gRPC，容器之间走 compose 网络）。
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    pull_policy: missing
+    container_name: jscreator-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      # 只在内网 compose 网络里提供注册服务，不对外暴露控制台，因此关掉鉴权
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${NACOS_PORT:-8848}:8848"
+    volumes:
+      - nacos-data:/home/nacos/data
+    mem_limit: 900m
+
   mysql:
     image: mysql:8.0
     container_name: jscreator-mysql
@@ -73,14 +96,12 @@ services:
     command: ["gateway"]
     environment:
       <<: *app-env
-      AUTH_SERVICE_URL: http://jscreator-auth:8090
-      CONTENT_SERVICE_URL: http://jscreator-content:8091
-      SOCIAL_SERVICE_URL: http://jscreator-social:8092
-      SYSTEM_SERVICE_URL: http://jscreator-system:8093
       JAVA_TOOL_OPTIONS: "-Xmx160m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -Xss512k"
     ports:
       - "${APP_PORT:-7000}:8088"
     depends_on:
+      nacos:
+        condition: service_started
       mysql:
         condition: service_healthy
     mem_limit: 320m
@@ -95,6 +116,8 @@ services:
       <<: *app-env
       JAVA_TOOL_OPTIONS: "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
     depends_on:
+      nacos:
+        condition: service_started
       mysql:
         condition: service_healthy
     mem_limit: 480m
@@ -109,6 +132,8 @@ services:
       <<: *app-env
       JAVA_TOOL_OPTIONS: "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
     depends_on:
+      nacos:
+        condition: service_started
       mysql:
         condition: service_healthy
     mem_limit: 480m
@@ -123,6 +148,8 @@ services:
       <<: *app-env
       JAVA_TOOL_OPTIONS: "-Xmx224m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
     depends_on:
+      nacos:
+        condition: service_started
       mysql:
         condition: service_healthy
     mem_limit: 420m
@@ -137,6 +164,8 @@ services:
       <<: *app-env
       JAVA_TOOL_OPTIONS: "-Xmx192m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
     depends_on:
+      nacos:
+        condition: service_started
       mysql:
         condition: service_healthy
     mem_limit: 380m
@@ -158,3 +187,4 @@ services:
 
 volumes:
   mysql-data:
+  nacos-data:

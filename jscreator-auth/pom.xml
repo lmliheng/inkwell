@@ -15,6 +15,11 @@
     <description>认证与授权域：auth / email / github / totp / user / rbac / oauth / openapi（46 个接口）</description>
 
     <dependencies>
+        <!-- 服务注册/发现：Nacos（网关用 lb://<服务名> 路由，服务启动时自动注册） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.jscreator</groupId>
             <artifactId>jscreator-common-web</artifactId>

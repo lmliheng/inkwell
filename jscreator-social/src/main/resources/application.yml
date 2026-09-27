@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: jscreator-social
+  cloud:
+    nacos:
+      # 容器里由 compose 注入 NACOS_ADDR=nacos:8848；本机开发（scripts/dev_service.sh）默认连 127.0.0.1
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:fastweb_test}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false&allowMultiQueries=true

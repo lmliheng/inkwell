@@ -12,9 +12,21 @@
                             ├── social   :8092   关注/点赞/收藏/私信/通知
                             └── system   :8093   监控/备份
                                       └── MySQL 8（127.0.0.1:3308，22 张表，由现有 dump 初始化）
+        五个服务 ──注册/发现──► nacos :8848（宿主 127.0.0.1:8848，仅控制台用）
 
 浏览器 ──► web :80（nginx 托管 Admin 构建产物，/api/* 反代到 gateway）
 ```
+
+### 服务发现（Nacos）
+
+五个服务启动时把自己的 `spring.application.name` 注册到 Nacos，网关的路由目标写 `lb://jscreator-auth` 这类**服务名**而不是固定 IP，
+新增实例（扩容、换端口、换机器）只要注册上来就能被网关发现，不用改配置、不用重启网关。
+
+- 地址由 `NACOS_ADDR` 注入：容器里是 `nacos:8848`（compose 网络），本机开发默认 `127.0.0.1:8848`。
+- Nacos 单机 standalone 模式，用内嵌存储（不依赖 MySQL）；控制台端口只绑 `127.0.0.1`，不对外，因此关掉了鉴权（`NACOS_AUTH_ENABLE=false`）。
+- 可用性上不设硬依赖：网关找不到实例时按 `lb` 的默认行为返回 503，其余服务不受影响。
+- 想看注册了哪些实例：
+  `curl -s '127.0.0.1:8848/nacos/v1/ns/instance/list?serviceName=jscreator-auth'`
 
 ## 后台前端（Admin）
 
@@ -135,6 +147,7 @@ docker compose up -d
 
 > 五个服务共用同一个镜像（`jscreator-app:local`），构建一次、靠启动参数选 jar。
 > `.dockerignore` 已排除 `.env` 等文件，密钥不会进镜像。
+> 首次 `up` 会拉 `nacos/nacos-server:v2.3.2`（约 820M 镜像，网络慢的话先 `docker pull nacos/nacos-server:v2.3.2` 预热）。
 > 要从零在容器里编译（CI/换机器）就用 `deploy/Dockerfile.app`：`docker build -t jscreator-app:local -f deploy/Dockerfile.app .`
 > （本机 2 核，容器内编译约十几分钟，所以日常用上面的运行镜像流程。）
 
@@ -148,17 +161,22 @@ docker compose start         # 再起来
 docker compose down          # 删容器（数据卷仍在；加 -v 才会连库一起删）
 ```
 
-实测内存占用（5 个 JVM + MySQL，宿主机 3.8G）：
+实测内存占用（5 个 JVM + MySQL + Nacos + nginx，宿主机 3.8G、无 swap）：
 
 | 容器 | 占用 |
 | :-- | --: |
-| gateway | 171M |
-| auth | 160M |
-| content | 150M |
-| social | 146M |
-| system | 141M |
-| mysql | 198M |
-| **合计** | **≈ 966M** |
+| nacos | 510M |
+| gateway | 224M |
+| auth | 248M |
+| content | 173M |
+| social | 187M |
+| system | 176M |
+| mysql | 269M |
+| web | 4M |
+| **合计** | **≈ 1.8G** |
+
+每个容器都设了 `mem_limit`（见 `docker-compose.yml`），单个服务内存失控不会把宿主机拖垮；
+Nacos 的堆锁在 256M（`JVM_XMS/JVM_XMX`），限 900M。
 
 本机开发（不用 Docker）需要 JDK 17 + Maven：
 
@@ -197,6 +215,7 @@ java -jar jscreator-auth/target/jscreator-auth-1.0.0.jar     # 各服务单独�
 | :-- | :-- |
 | M0 骨架（网关 + auth 登录/注册/profile + 四服务拓扑 + compose） | ✅ 已完成 |
 | M1 认证授权域 46 接口（email/github/totp/user/rbac/oauth/api-key） | ✅ 已完成（对照原版 **214/214** 用例一致） |
+| Nacos 服务注册与发现（网关路由改 `lb://<服务名>`） | ✅ 已完成（214/214 无回归） |
 | M2 内容域 37 接口 | ⬜ 待做 |
 | M3 互动域 25 接口 | ⬜ 待做 |
 | M4 系统域 + 前端联调 | ⬜ 待做 |
