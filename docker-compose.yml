@@ -1,18 +1,22 @@
 # Inkwell · 个人内容平台（Spring Cloud 微服务 + Vue 前端）一键编排
 #
-#   docker compose up -d --build     # 首次：构建镜像 + 建库导入 dump + 起 5 个服务 + 2 个前端
+#   docker compose up -d --build     # 首次：构建镜像 + 建库导入种子 SQL + 起 5 个服务 + 2 个前端
 #   docker compose stop              # 停服务（省内存；数据卷保留，下次 start 即可）
 #   docker compose up -d --build admin-web   # 只重建后台前端
 #   docker compose logs -f auth      # 看某个服务的日志
+#
+# 只装了 Docker、没有 JDK/Maven：APP_DOCKERFILE=deploy/Dockerfile.app docker compose up -d --build
+# （在容器里编译后端，首次会下载 Maven 依赖，慢一些）
 #
 # 对外：gateway（宿主 7000，与原 Node 后端同端口，前端零改动）、后台 admin-web（80）、博客 blog-web（8080）。
 name: inkwell
 
 x-app-build: &app-build
   context: .
-  # 默认用运行镜像（本机先 mvn package，构建秒级完成）；
-  # 想在容器里从零编译就换成 deploy/Dockerfile.app
-  dockerfile: deploy/Dockerfile.runtime
+  # 默认用运行镜像：本机先 `mvn -DskipTests package`，镜像构建只剩拷贝，几秒钟完成。
+  # 没装 JDK/Maven 就换成多阶段构建（容器里编译，首次要下依赖、慢一些）：
+  #   APP_DOCKERFILE=deploy/Dockerfile.app docker compose up -d --build
+  dockerfile: ${APP_DOCKERFILE:-deploy/Dockerfile.runtime}
 
 x-app-env: &app-env
   DB_HOST: mysql
