@@ -1,12 +1,12 @@
-"""真实浏览器登录 Admin，逐页检查页面发出的 /api 请求，判定 M1（认证授权域）页面是否可用。
+"""真实浏览器登录 Admin，逐页检查页面发出的 /api 请求，判定后台页面是否可用。
 
-已移植的接口（M1）必须返回 2xx；尚未移植的模块（M2/M3/M4）返回 404 属预期，
-由 EXPECT_404 前缀识别并单独列出，不计入失败。
+M0–M4 接口都已移植，所以这里要求**所有** /api 请求都是 2xx（早期只移植 M1 时，
+M2/M3/M4 的 404 曾被单独豁免；现在没有豁免项，任何非 2xx 都算失败）。
 
 用法：
     python scripts/admin_page_probe.py [base] [user] [pwd]
     base 默认 http://127.0.0.1（即宿主 80 端口的 Admin）
-退出码 0 = 所有已移植接口都 2xx。
+退出码 0 = 所有接口都 2xx 且无 JS 报错。
 """
 import asyncio
 import re
@@ -30,12 +30,9 @@ PAGES = [
     ("文章管理", "/article/article-manage"),
 ]
 
-# 尚未移植的模块（M2 内容域 / M3 互动域 / M4 系统域），其接口 404 属预期
-EXPECT_404 = (
-    "/api/article", "/api/comment", "/api/blog", "/api/ad", "/api/announcement", "/api/upload",
-    "/api/social", "/api/dm", "/api/notification",
-    "/api/system-monitor", "/api/backup",
-)
+# 早期只移植了 M1，M2/M3/M4 的接口 404 属预期，用这个前缀表豁免；
+# 现在五个域都移植完了，表留空——任何非 2xx 都会被判为失败。
+EXPECT_404 = ()
 
 
 def is_expected_missing(url: str) -> bool:
