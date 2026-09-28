@@ -5,7 +5,8 @@ TOTP 成功分支要自己算动态码：用例模块在 import 时按原版 otp
 所以 ref（Node）与 Java 两侧拿到的是同一个码。
 
 两张密钥：
-- admin 的 totp_secret 是 dump 里就有的（两个库一致），用它做「登录成功」用例，与写库无关；
+- admin 的 totp_secret 是库里就有的（两个库一致），用它做「登录成功」用例，与写库无关；
+  **这是真实用户的秘密，所以不写进代码**：由环境变量 REF_ADMIN_TOTP_SECRET 传进来，没传就跳过那条用例；
 - user1 起始未绑定，用固定密钥走 confirm → login → disable 的完整来回（自带善后，可重复执行）。
 
 因为 window=0，用例必须跑在当前 30 秒步长内：import 时若剩余时间不足 12 秒，先睡到下一步长再算码。
@@ -14,6 +15,7 @@ TOTP 成功分支要自己算动态码：用例模块在 import 时按原版 otp
 import base64
 import hashlib
 import hmac
+import os
 import struct
 import time
 
@@ -23,8 +25,12 @@ from _spec import case
 STEP_SECONDS = 30
 DIGITS = 6
 
-# 库里 admin 已有的密钥（deploy/mysql/init/01-schema.sql，两个库一致）
-ADMIN_SECRET = "REPLACE_WITH_YOUR_TOTP_SECRET"
+# 对照库里 admin 已有的密钥 —— 属于真实用户秘密，公开仓库里不写死。
+# 要覆盖「admin 用动态码登录成功」这条用例，跑之前从库里读出来给进环境变量：
+#   export REF_ADMIN_TOTP_SECRET=$(docker exec -i inkwell-mysql sh -c \
+#     'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e "SELECT totp_secret FROM fastweb_test.user WHERE id=1"' 2>/dev/null)
+# 没给这个变量时，只有依赖它的那一条用例会被跳过，其余用例照常跑。
+ADMIN_SECRET = os.environ.get("REF_ADMIN_TOTP_SECRET", "")
 # user1 用例自己带的固定密钥（合法 Base32，16 字符 → 10 字节）
 USER_SECRET = "JBSWY3DPEHPK3PXP"
 
@@ -48,7 +54,8 @@ def _align_to_step():
 
 _align_to_step()
 USER_CODE = totp(USER_SECRET)
-ADMIN_CODE = totp(ADMIN_SECRET)
+# admin 的密钥可能没给（见上面说明），这时算不出码，相关用例会在下面被过滤掉
+ADMIN_CODE = totp(ADMIN_SECRET) if ADMIN_SECRET else ""
 WRONG_CODE = "123456" if USER_CODE != "123456" else "654321"
 WRONG_CODE_ADMIN = "123456" if ADMIN_CODE != "123456" else "654321"
 
@@ -66,7 +73,7 @@ CASES = [
     case("login 账号不存在 → 401", "POST", "/totp/login",
          {"account": "m1d-nobody@example.com", "code": "000000"}, auth="none"),
     case("login 未绑定账号 → 400", "POST", "/totp/login",
-         {"account": "editor", "code": ADMIN_CODE}, auth="none"),
+         {"account": "editor", "code": USER_CODE}, auth="none"),
 
     # ---------- setup（登录后） ----------
     case("setup 成功（secret/uri 随机，忽略取值）", "POST", "/totp/setup", auth="user",
@@ -102,3 +109,10 @@ CASES = [
     case("login 解绑后再登录 → 400", "POST", "/totp/login",
          {"account": "user1", "code": USER_CODE}, auth="none"),
 ]
+
+if not ADMIN_SECRET:
+    # 没有 admin 的密钥就算不出它的动态码，跳过这一条（其余用例不受影响）
+    _skipped = [c for c in CASES if c["name"].startswith("login admin")]
+    CASES = [c for c in CASES if c not in _skipped]
+    for c in _skipped:
+        print(f"⚠ totp 用例：未设置 REF_ADMIN_TOTP_SECRET，跳过「{c['name']}」")

@@ -24,13 +24,24 @@ set +a
 
 mysql_exec() { docker exec -i inkwell-mysql mysql -uroot -p"$DB_PASSWORD" "$@" 2>/dev/null; }
 
+# 对照库要的是一份**带真实数据**的 dump：用例里按绝对 id 引用资源（如 PUT /article/update/86），
+# 所以库必须和线上同构同量。仓库里公开的那份 01-schema.sql 是脱敏种子（只有表结构 + RBAC +
+# 默认管理员），只够把空站跑起来，跑不了对照 —— 因此这里优先用本机保存的完整 dump，
+# 没有才退回仓库里的种子（那样只能跑不依赖既有数据的用例）。
+#   导出完整 dump：docker exec inkwell-mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" fastweb_test' > /root/jscreator-full-dump.sql
+full_dump() {
+    local f="${REF_SEED_SQL:-/root/jscreator-full-dump.sql}"
+    [ -f "$f" ] && printf '%s' "$f" || printf '%s' deploy/mysql/init/01-schema.sql
+}
+
 make_db() {
     local db="${1:-fastweb_m1ref}"
-    echo "==> 建库 $db（从 deploy/mysql/init/01-schema.sql 导入 + 口令统一成 123456）"
+    local seed; seed="$(full_dump)"
+    echo "==> 建库 $db（从 $seed 导入 + 口令统一成 123456）"
     mysql_exec -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
     # 库是新建的，直接导入即可；重复执行时先清表再由 dump 重建
     mysql_exec -e "DROP DATABASE \`$db\`; CREATE DATABASE \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-    mysql_exec "$db" < deploy/mysql/init/01-schema.sql
+    mysql_exec "$db" < "$seed"
     local hash
     hash=$(printf '%s' 123456 | sha256sum | cut -d' ' -f1)
     mysql_exec "$db" -e "UPDATE user SET password='$hash';"

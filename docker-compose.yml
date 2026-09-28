@@ -183,6 +183,10 @@ services:
     image: inkwell-admin:local
     container_name: inkwell-admin
     restart: unless-stopped
+    environment:
+      # 后台来源白名单（分号分隔的 IP/CIDR），由容器启动脚本展开成 nginx 的 allow 列表。
+      # 默认只放行本机与 docker 私网段；自己的出口 IP 写在 .env 里，不进公开仓库。
+      ADMIN_ALLOW_HOSTS: ${ADMIN_ALLOW_HOSTS:-127.0.0.1;::1;172.16.0.0/12}
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:

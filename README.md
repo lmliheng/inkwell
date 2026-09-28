@@ -58,7 +58,7 @@ docker compose up -d
 
 | 入口 | 地址 | 说明 |
 | :-- | :-- | :-- |
-| 后台管理 | http://127.0.0.1/ | 端口取 `.env` 的 `WEB_PORT`；`admin` / `123456`；**有来源 IP 白名单**（见 `apps/admin/nginx.conf`） |
+| 后台管理 | http://127.0.0.1/ | 端口取 `.env` 的 `WEB_PORT`；默认管理员 `admin` / `123456`（**部署后立刻改**）；有来源 IP 白名单，见下文 |
 | 博客 | http://127.0.0.1:8080/ | 端口取 `BLOG_PORT`；对外站点，无白名单 |
 | 网关 API | http://127.0.0.1:7000/ | 与原 Node 后端同端口，前端与第三方都打这里 |
 | Nacos 控制台 | http://127.0.0.1:8848/nacos | 只绑本机；服务列表在「服务管理 → 服务列表」 |
@@ -119,8 +119,10 @@ Nacos 堆锁在 256M（`JVM_XMS/JVM_XMX`）。容器限额总和略小于物理�
   已验证：同源 POST 200，伪造外部 Origin 403。
 - **`resolver 127.0.0.11` + 变量式 `proxy_pass`**：nginx 默认只在启动时解析一次上游域名，
   网关容器重建换 IP 后会持续 502；用变量 + Docker 内嵌 DNS 后自动跟上。
-- **后台的访问白名单**：`apps/admin/nginx.conf` 的 `allow/deny`（默认放行两个已知来源 IP、本机、`172.16.0.0/12` 私网段），
-  其余一律 403。换网络/换手机号段时改这里再 `docker compose up -d --build admin-web`。
+- **后台的访问白名单**：后台只对名单内的来源开放，其余一律 403。名单来自环境变量 `ADMIN_ALLOW_HOSTS`
+  （分号分隔的 IP/CIDR），由容器启动脚本 `apps/admin/allow-hosts.sh` 展开成 nginx 的 allow 列表：
+  默认只放行本机与 `172.16.0.0/12` 私网段，**不加自己的出口 IP 就只有服务器本机能打开后台**。
+  自己的 IP 写在 `.env`（不进仓库），改完 `docker compose up -d --build admin-web` 生效。
 - **换域名/端口后**：站点的 origin 要进 `.env` 的 `FRONTEND_URLS`（否则网关按 CORS 拒掉），改完 `docker compose up -d gateway` 让网关重建（环境变量只在创建容器时生效）。
 
 本地开发（不用容器）：
@@ -146,7 +148,11 @@ cd apps/blog  && npm ci && npm run dev     # 5173，同上
 
 ## 数据库
 
-- 首次启动（数据目录为空）时，`deploy/mysql/init/*.sql` 会自动执行：`01-schema.sql` 是完整 dump（22 张表 + 现有数据），`02-analyze.sql` 紧接着 `ANALYZE` 全库。
+- 首次启动（数据目录为空）时，`deploy/mysql/init/*.sql` 会自动执行：`01-schema.sql` 建 22 张表并写入最小种子数据，
+  `02-analyze.sql` 紧接着 `ANALYZE` 全库。
+- **`01-schema.sql` 是公开的脱敏种子**：只有表结构 + RBAC 三张表（角色 / 权限 / 角色权限关联）+ 一个默认管理员，
+  没有任何业务数据。默认管理员 **`admin` / `123456`**（口令仍是原版的无盐 SHA-256），**部署后第一件事就是改掉它**。
+  需要恢复到自己的线上数据时，用你自己的备份导入（导完记得 `ANALYZE`，见下）。
 - MySQL 有一个非默认参数（见 `docker-compose.yml` 注释）：`--sort-buffer-size=2M`。
   `/blog/feed`、`/blog/hot` 这类「`GROUP BY` 含 `content` 这种 TEXT 列 + `ORDER BY`」的查询，
   统计信息不准时优化器会选到耗内存的计划，默认 256K 直接报 `1038 Out of sort memory`、接口变成 500。
@@ -161,11 +167,20 @@ cd apps/blog  && npm ci && npm run dev     # 5173，同上
 
 ### 逐接口对照原版（移植的判据）
 
-判据不是「能跑」，而是「和原 Node 版一模一样」：原版起在另一个端口、连一个从 dump 单独建的库，
+判据不是「能跑」，而是「和原 Node 版一模一样」：原版起在另一个端口、连一个从完整 dump 建的库，
 两边跑同一组请求、逐字段比对。
 
+> **对照要的是带真实数据的库**：用例里按绝对 id 引用资源（例如 `PUT /article/update/86`），
+> 所以库必须与线上同构同量。仓库里的 `01-schema.sql` 是脱敏种子，跑不了对照 ——
+> 请先把完整 dump 放到本机 `/root/jscreator-full-dump.sql`（**不进仓库**），`ref_env.sh` 会优先用它：
+>
+> ```bash
+> docker exec inkwell-mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" fastweb_test' \
+>   > /root/jscreator-full-dump.sql && chmod 600 /root/jscreator-full-dump.sql
+> ```
+
 ```bash
-bash   scripts/ref_env.sh db  fastweb_ref            # 从 dump 建对照库（口令统一 123456）
+bash   scripts/ref_env.sh db  fastweb_ref            # 从完整 dump 建对照库（口令统一 123456）
 bash   scripts/ref_env.sh start fastweb_ref 7001     # 编译并起原版（日志 /tmp/jscreator-ref-7001.log）
 python3 scripts/ref_diff.py --ref http://127.0.0.1:7001 --java http://127.0.0.1:7000
 python3 scripts/ref_diff.py --list                   # 有哪些模块 / 用例
@@ -177,9 +192,11 @@ bash   scripts/ref_env.sh stop 7001
 - 用例按模块放在 `scripts/ref_cases/<模块>.py`，格式见 `scripts/ref_cases/_spec.py`。
 - 比对规则：状态码必须相同；响应体的**键集合**递归比对（含键序）；`token`/时间戳/`client_secret` 这类易变值跳过；
   列表响应用 `key=(路径, 主键字段)` 配对，容忍对照库里多出来的行。
+- **`totp` 有一条用例要用 admin 在库里的 TOTP 密钥**（真实用户的秘密，代码里不写死）：
+  跑之前 `export REF_ADMIN_TOTP_SECRET=<库里的值>`，不给就只跳过这一条。
 - **残留**：`ref_diff` 与 `smoke_test` 会真的写库，跑完用 `ref_env.sh clean <db>` 清一次，两个库都要清。
 
-最近一次全量结果（真实网关 + 5 个容器，两侧库都从 dump 全新重建）：
+最近一次全量结果（真实网关 + 5 个容器，两侧库都从完整 dump 全新重建）：
 
 ```
 REF_SEED_DBS=fastweb_m1ref,fastweb_deployref python3 scripts/ref_diff.py \

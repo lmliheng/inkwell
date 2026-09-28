@@ -3,7 +3,8 @@
 覆盖：正常路径 + 无 token(401) / 非管理员(403) / 缺参(400) / 不存在的 id 或用户名(404) /
 原版自身的怪癖（NaN 进 SQL → 500）、toggle 的重复分支、分页参数的回落。
 
-跑之前请先让两个对照库处于同一份 dump 状态（两库都由 deploy/mysql/init/01-schema.sql 建成），
+跑之前请先让两个对照库处于同一份 dump 状态（都由 `scripts/ref_env.sh db` 从完整 dump 建成，
+它会优先用本机 /root/jscreator-full-dump.sql，见该脚本里的说明），
 用例里有三处用了「确定的自增 id」：DELETE /social/admin/favorites/5、/social/notifications/read {id:6}、
 /notification/update|delete {notification_id:6}。未复位时这些 id 可能落空，此时两侧都只是空操作，
 对照仍然一致，但会留下几行（下面列了清单）。

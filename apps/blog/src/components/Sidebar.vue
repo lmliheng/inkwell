@@ -9,7 +9,7 @@ const props = defineProps({
   avatar: { type: String, default: '' },
   nickname: { type: String, default: 'Inkwell' },
   bio: { type: String, default: '技术随笔' },
-  github: { type: String, default: 'https://github.com/lmliheng/JScreator' },
+  github: { type: String, default: 'https://github.com/lmliheng/inkwell' },
   rss: { type: String, default: '#' },
   email: { type: String, default: 'mailto:hello@example.com' },
 })

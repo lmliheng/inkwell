@@ -19,5 +19,8 @@ RUN npx vite build
 
 FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 启动时按 ADMIN_ALLOW_HOSTS 生成来源白名单（/etc/nginx/inkwell-allow.conf）
+COPY allow-hosts.sh /docker-entrypoint.d/10-allow-hosts.sh
+RUN chmod +x /docker-entrypoint.d/10-allow-hosts.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
