@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-ssr
+coverage
+cypress/videos
+cypress/screenshots
+*.log
+*.tsbuildinfo
+.git

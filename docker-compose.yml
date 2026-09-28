@@ -176,17 +176,31 @@ services:
         condition: service_healthy
     mem_limit: 380m
 
-  # 后台前端（Admin 构建产物，见 web/build.sh）：nginx 托管静态文件 + /api 反代网关
-  web:
-    image: nginx:alpine
-    pull_policy: never
-    container_name: inkwell-web
+  # 后台前端：apps/admin 源码在容器里构建（node → vite build），产物由 nginx 托管并反代 /api
+  admin-web:
+    build:
+      context: ./apps/admin
+    image: inkwell-admin:local
+    container_name: inkwell-admin
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
-    volumes:
-      - ./web/dist:/usr/share/nginx/html:ro
-      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - gateway
+    mem_limit: 64m
+
+  # 博客前端：同上，对外站点，不设来源白名单
+  blog-web:
+    build:
+      context: ./apps/blog
+      args:
+        # 「进入后台」链接的目标，换域名时改 .env 里的 ADMIN_URL
+        VITE_ADMIN_ADDRESS: ${ADMIN_URL:-http://127.0.0.1/}
+    image: inkwell-blog:local
+    container_name: inkwell-blog
+    restart: unless-stopped
+    ports:
+      - "${BLOG_PORT:-8080}:80"
     depends_on:
       - gateway
     mem_limit: 64m

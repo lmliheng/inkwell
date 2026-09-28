@@ -1,0 +1,369 @@
+@import "tailwindcss";
+
+/* ============================================================
+ * 设计系统 · hugo-theme-stack 迁移版
+ *
+ * 语义颜色 token 用 @theme 定义；暗色模式通过「覆盖同名 CSS 变量」实现：
+ *   亮色值 → @theme 自动输出到 :root
+ *   暗色值 → :root.dark / :root[data-scheme="dark"] 覆盖
+ * 因此组件直接写 bg-card / text-ink / border-line 等工具类即可自动适配明暗，
+ * 无需为每个类重复写 dark: 变体。
+ *
+ * 同时用 @custom-variant 把 dark: 变体改为 class 驱动（默认 Tailwind v4
+ * 跟随系统 prefers-color-scheme），供需要精确控制时使用。
+ * ============================================================ */
+
+/* dark: 变体由 .dark class 驱动（手动切换） */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ---- 字体 ---- */
+  --font-sans: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", "Droid Sans",
+    "Helvetica Neue", sans-serif;
+  --font-mono: Menlo, Monaco, Consolas, "Courier New", monospace;
+
+  /* ---- 圆角 ---- */
+  --radius-card: 10px; /* 卡片圆角 */
+  --radius-tag: 4px;   /* 标签圆角 */
+
+  /* ---- 语义颜色（亮色 · 取自 hugo-theme-stack variables.scss）---- */
+  --color-page: #f5f5fa;                  /* 页面背景 */
+  --color-card: #ffffff;                  /* 卡片背景 */
+  --color-accent: #34495e;                /* 强调色 */
+  --color-accent-strong: #2c3e50;         /* 强调色 hover */
+  --color-on-accent: #ffffff;             /* 强调色上的文字 */
+  --color-ink: #000000;                   /* 卡片主文字（标题） */
+  --color-body: #707070;                  /* 正文文字 */
+  --color-muted: #747474;                 /* 卡片次文字（摘要/元信息） */
+  --color-faint: #767676;                 /* 卡片三级文字 */
+  --color-line: rgba(218, 218, 218, 0.5); /* 卡片分隔线 */
+
+  /* ---- 覆盖 Tailwind 默认色：让现有 zinc/indigo 写法直接显示 design-stack 配色 ----
+   * （迁移期兼容层：推荐用上面的语义 token，此处兜底，避免旧页面用错色） */
+
+  /* 中性灰 zinc → 映射到 hugo-theme-stack 中性色 */
+  --color-zinc-50: #f5f5fa;   /* 页面背景 */
+  --color-zinc-100: #f0f0f5;  /* 浅填充 / hover 背景 */
+  --color-zinc-200: #e6e6ec;  /* 浅边框 */
+  --color-zinc-300: #dadada;  /* 边框（分隔线实色） */
+  --color-zinc-400: #9b9ba3;  /* 占位 / 更浅文字 */
+  --color-zinc-500: #747474;  /* 卡片次文字 */
+  --color-zinc-600: #767676;  /* 卡片三级文字 */
+  --color-zinc-700: #707070;  /* 正文 */
+  --color-zinc-800: #343434;  /* 近主文字 */
+  --color-zinc-900: #000000;  /* 卡片主文字 */
+
+  /* 强调色 indigo → 映射到强调色 #34495e */
+  --color-indigo-50: #eef1f4;  /* 强调色浅底 */
+  --color-indigo-100: #dfe5ea; /* 强调色浅底 */
+  --color-indigo-200: #c6d0d9; /* 强调色浅边框 */
+  --color-indigo-500: #34495e; /* 强调色（focus ring 等） */
+  --color-indigo-600: #34495e; /* 强调色 */
+  --color-indigo-700: #2c3e50; /* 强调色 hover */
+}
+
+/* ---- 暗色主题：覆盖语义 token ---- */
+:root.dark,
+:root[data-scheme="dark"] {
+  --color-page: #303030;
+  --color-card: #424242;
+  --color-accent: #ecf0f1;
+  --color-accent-strong: #bdc3c7;
+  --color-on-accent: #000000;
+  --color-ink: rgba(255, 255, 255, 0.9);
+  --color-body: rgba(255, 255, 255, 0.7);
+  --color-muted: rgba(255, 255, 255, 0.7);
+  --color-faint: rgba(255, 255, 255, 0.5);
+  --color-line: rgba(255, 255, 255, 0.12);
+}
+
+/* ---- 布局尺寸 ---- */
+:root {
+  --sidebar-width: 320px;
+  --content-max: 900px;
+  --section-gap: 40px;
+  --page-top: 35px;
+}
+@media (min-width: 1280px) {
+  :root {
+    --page-top: 50px;
+  }
+}
+
+/* ---- 基础样式 ---- */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-page);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* ---- 通用基元（供后续页面复用）---- */
+.card {
+  background-color: var(--color-card);
+  color: var(--color-ink);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+@media (min-width: 768px) {
+  .card {
+    padding: 25px;
+  }
+}
+@media (min-width: 1280px) {
+  .card {
+    padding: 30px;
+  }
+}
+
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  border-radius: var(--radius-tag);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+.btn-accent:hover {
+  background-color: var(--color-accent-strong);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-tag);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  background-color: color-mix(in oklab, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+}
+
+.input {
+  width: 100%;
+  background-color: var(--color-card);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-tag);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 20%, transparent);
+}
+
+/* ============================================================
+ * Markdown 正文排版（文章详情 / 编辑器预览）
+ * 正文字号 1rem（md 1.0625rem）、行高 1.75，取自设计规范
+ * ============================================================ */
+.prose {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #3f3f46; /* 正文明显加深（决策：亮色 #3f3f46） */
+  overflow-wrap: break-word;
+}
+.dark .prose {
+  color: rgba(255, 255, 255, 0.85); /* 暗色模式正文提亮 */
+}
+@media (min-width: 768px) {
+  .prose {
+    font-size: 1.0625rem;
+  }
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  color: var(--color-ink);
+  font-weight: 700;
+  line-height: 1.3;
+}
+.prose h1 { margin: 2rem 0 1rem; font-size: 1.6em; }
+.prose h2 { margin: 2rem 0 1rem; font-size: 1.4em; }
+.prose h3 { margin: 1.75rem 0 0.75rem; font-size: 1.2em; }
+.prose h4 { margin: 1.5rem 0 0.5rem; font-size: 1.05em; }
+
+.prose p { margin: 1em 0; }
+
+.prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.prose a:hover {
+  color: var(--color-accent-strong);
+}
+
+.prose ul { margin: 1em 0; padding-left: 1.5em; list-style: disc; }
+.prose ol { margin: 1em 0; padding-left: 1.5em; list-style: decimal; }
+.prose li { margin: 0.35em 0; }
+.prose li > ul,
+.prose li > ol { margin: 0.25em 0; }
+
+.prose blockquote {
+  margin: 1.25em 0;
+  padding: 0.25em 1.25em;
+  border-left: 0.25em solid var(--color-line);
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background-color: color-mix(in oklab, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+}
+
+.prose pre {
+  margin: 1.25em 0;
+  padding: 1em 1.25em;
+  overflow-x: auto;
+  border-radius: var(--radius-card);
+  background-color: var(--color-card);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.prose pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ============================================================
+ * mac 风格代码块（markdown.js highlight 生成 .code-block 结构）
+ * ============================================================ */
+.code-block {
+  margin: 1.25em 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #0d1117; /* github-dark 背景 */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.code-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.code-dots {
+  display: inline-flex;
+  gap: 6px;
+}
+.code-dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.code-dots .dot-r { background-color: #ff5f57; }
+.code-dots .dot-y { background-color: #febc2e; }
+.code-dots .dot-g { background-color: #28c840; }
+.code-lang {
+  flex: 1;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.code-actions button {
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.12);
+  transition: background-color 0.2s ease;
+}
+.code-actions button:hover {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+.code-block pre {
+  margin: 0 !important;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background-color: transparent !important;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.code-block pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+/* 代码文字整体提亮（github-dark 偏暗） */
+.code-block .hljs {
+  background-color: transparent;
+  color: #e6edf3;
+}
+/* 折叠状态 */
+.code-block.folded pre {
+  display: none;
+}
+
+.prose img {
+  max-width: 100%;
+  margin: 1.25em 0;
+  border-radius: var(--radius-card);
+}
+
+.prose hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.prose table {
+  width: 100%;
+  margin: 1.25em 0;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--color-line);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.prose th {
+  background-color: var(--color-card);
+  color: var(--color-ink);
+  font-weight: 700;
+}
