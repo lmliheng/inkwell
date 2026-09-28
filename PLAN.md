@@ -1,6 +1,7 @@
 # JScreator 后端 → Java 微服务移植方案
 
-> 目标：把 `/root/JScreator/Backend`（Express + TypeScript）按业务域拆成 Spring Boot 微服务，用 Docker Compose 整体部署，**前端三个应用（Admin / Blog / IMG）零改动**。
+> 目标：把 `/root/JScreator/Backend`（Express + TypeScript）按业务域拆成 Spring Boot 微服务，用 Docker Compose 整体部署，**前端零改动**。
+> 2026-09-28 收尾：仓库更名 **Inkwell**（模块/服务名保留 `jscreator-*`），后台与博客前端迁入 `apps/` 并随容器构建部署，IMG 前台不再维护。
 
 ---
 
@@ -128,23 +129,26 @@
 | **M3 互动域** | social、dm、notification 25 接口 | ✅ 已完成：对照原版 **139/139** 用例一致 |
 | **M4 系统域** | systemmon（监控 / 接口统计）、backup、根健康检查 4 接口 | ✅ 已完成：对照原版 **9/9** 用例一致；备份产物解压后可完整恢复成同构同量的库（逐表行数一致） |
 | **Nacos 服务发现** | 五个服务注册、网关路由改 `lb://<服务名>` | ✅ 已完成：五服务注册成功，全量对照 **613/613**，冒烟 20/20 |
-| **M5 前端联调 + 收尾（可选）** | 三个前端指向网关跑通主要流程；agent 模块（DeepSeek 摘要）、对外 `/api/v1/*`、按 schema 拆库 | Admin 九页浏览器实测全 2xx、无 JS 报错；Blog/IMG 未跑。**待定**：Admin 手机端只做了「布局壳 + 全局兜底」一版响应式，列多的表格仍偏挤 |
+| **M5 前端迁入 + 收尾** | 后台/博客前端进 `apps/`，容器内构建；agent 模块（DeepSeek 摘要）、对外 `/api/v1/*`、按 schema 拆库 | ✅ 前端已迁入并随 compose 部署：Admin 九页浏览器实测全 2xx、无 JS 报错；Blog 首页接口全 2xx、渲染 6 张文章卡片、无 JS 报错。**已决定**：IMG 前台不迁。**待定（非阻塞）**：Admin 手机端只做了「布局壳 + 全局兜底」一版响应式，列多的表格仍偏挤 |
 
 ## 7. 目录结构
 
 ```
-/root/jscreator-java/
+/root/jscreator-java/           ← 仓库名已是 inkwell，本机目录沿用旧名
 ├── PLAN.md                  ← 本文件
 ├── pom.xml                  ← 父 POM（统一版本、插件、Docker 镜像构建）
-├── docker-compose.yml       ← 一键起全套（MySQL + 5 服务）
-├── .env.example             ← DB/JWT/OSS/SMTP/GitHub 密钥清单
+├── docker-compose.yml       ← 一键起全套（MySQL + Nacos + 5 服务 + 2 前端）
+├── .env.example             ← DB/JWT/OSS/SMTP/GitHub 密钥清单、端口、ADMIN_URL
+├── apps/                    ← 前端源码，随容器构建（多阶段：node → nginx）
+│   ├── admin/               ← 后台（Vue 3 + Naive UI/Element Plus），由原 admin/ + Admin/ 两半合并而来
+│   └── blog/                ← 博客（Vue 3 + Tailwind 4），对外站点
 ├── jscreator-common/        ← ApiResponse、异常、JWT 工具、鉴权拦截器、分页、MyBatis 配置
 ├── jscreator-gateway/       ← 8088
 ├── jscreator-auth/          ← 8090
 ├── jscreator-content/       ← 8091
 ├── jscreator-social/        ← 8092
 ├── jscreator-system/        ← 8093
-├── scripts/                 ← smoke_test.py（冒烟）、admin_page_probe.py（浏览器逐页探针）、
+├── scripts/                 ← smoke_test.py（冒烟）、admin_page_probe.py / blog_page_probe.py（浏览器探针）、
 │                              ref_env.sh / dev_service.sh / ref_diff.py + ref_cases/（与原版逐接口对照）
 └── deploy/
     ├── Dockerfile.service   ← 多阶段构建（maven 编译 → jre 运行），按 Maven profile 选模块
