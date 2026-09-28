@@ -22,7 +22,7 @@ function seed() {
         email: 'admin@demo.com',
         password: 'admin123',
         role_id: 1,
-        nickname: 'JScreator',
+        nickname: 'Inkwell',
         bio: '技术随笔',
         region: '中国 · 上海',
         avatar: '',

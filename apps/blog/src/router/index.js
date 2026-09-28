@@ -132,11 +132,11 @@ router.beforeEach((to) => {
   return true
 })
 
-// 动态标题：默认「{当前用户昵称}的博客」，未登录回退「JScreator的博客」。
+// 动态标题：默认「{当前用户昵称}的博客」，未登录回退「Inkwell的博客」。
 // 博客个人主页（BlogProfileView）在拿到 profile 数据后会覆盖为被访问者的昵称。
 router.afterEach((to) => {
   const auth = useAuthStore(pinia)
-  const name = auth.displayName || 'JScreator'
+  const name = auth.displayName || 'Inkwell'
   if (to.name === 'blog-profile') {
     // 由视图异步覆盖为对方昵称；此处先给出用户名占位
     document.title = `${String(to.params.username || '')}的博客`

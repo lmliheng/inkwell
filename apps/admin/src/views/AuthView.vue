@@ -11,7 +11,7 @@ const isLogin = ref(true)
     <div class="auth-page">
         <div class="auth-left">
             <div class="auth-brand">
-                <h1>Mind-Admin</h1>
+                <h1>Inkwell</h1>
                 <p>简洁、高效的后台管理系统</p>
             </div>
         </div>

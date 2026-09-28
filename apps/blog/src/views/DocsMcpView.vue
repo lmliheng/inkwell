@@ -32,7 +32,7 @@ function logout() {
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4">
         <RouterLink to="/" class="flex items-center gap-2 text-white">
           <span class="docs-logo">J</span>
-          <span class="font-extrabold tracking-wide">JScreator 博客</span>
+          <span class="font-extrabold tracking-wide">Inkwell 博客</span>
         </RouterLink>
         <nav class="hidden items-center gap-1 sm:flex">
           <RouterLink to="/" class="docs-nav-link">首页</RouterLink>

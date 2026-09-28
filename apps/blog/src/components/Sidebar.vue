@@ -7,7 +7,7 @@ import ThemeToggle from './ThemeToggle.vue'
 
 const props = defineProps({
   avatar: { type: String, default: '' },
-  nickname: { type: String, default: 'JScreator' },
+  nickname: { type: String, default: 'Inkwell' },
   bio: { type: String, default: '技术随笔' },
   github: { type: String, default: 'https://github.com/lmliheng/JScreator' },
   rss: { type: String, default: '#' },
@@ -24,9 +24,9 @@ const open = ref(false)
 // 后台入口地址：本地开发指向 8085，生产部署在同域 /panel/ 下
 const adminUrl = import.meta.env.DEV ? 'http://localhost:8085/' : '/panel/'
 
-// 侧边栏展示的信息优先级：当前浏览的作者 > 登录用户 > props 默认（JScreator）
+// 侧边栏展示的信息优先级：当前浏览的作者 > 登录用户 > props 默认（Inkwell）
 const displayName = computed(
-  () => authorStore.current?.name || authorStore.current?.username || auth.displayName || props.nickname || 'JScreator',
+  () => authorStore.current?.name || authorStore.current?.username || auth.displayName || props.nickname || 'Inkwell',
 )
 
 const avatarUrl = computed(

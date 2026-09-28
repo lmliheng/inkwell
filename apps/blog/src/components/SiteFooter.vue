@@ -14,7 +14,7 @@ let foot_text=ref(import.meta.env.VITE_FOOT_TEXT)
 <template>
   <footer class="site-footer">
     <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-6 text-center">
-      <span class="text-sm text-faint">JS creator © {{ year }}</span>
+      <span class="text-sm text-faint">Inkwell © {{ year }}</span>
       <span class="text-faint">·</span>
       <span class="text-sm text-faint">{{ foot_text }}</span>
       <a

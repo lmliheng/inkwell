@@ -12,7 +12,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
 
-const displayName = computed(() => auth.displayName || 'JS creator')
+const displayName = computed(() => auth.displayName || 'Inkwell')
 
 // ===== 数据 =====
 const latest = ref([])
@@ -86,8 +86,8 @@ onMounted(fetchAll)
     <header class="hero-topbar">
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4">
         <RouterLink to="/" class="flex items-center gap-2 text-white">
-          <span class="hero-logo">TS</span>
-          <!-- <span class="font-extrabold tracking-wide">JScreator</span> -->
+          <span class="hero-logo">IN</span>
+          <!-- <span class="font-extrabold tracking-wide">Inkwell</span> -->
         </RouterLink>
         <nav class="hidden items-center gap-1 sm:flex">
           <RouterLink to="/" class="hero-nav-link" active-class="hero-nav-active" exact-active-class="hero-nav-active">首页</RouterLink>
@@ -135,7 +135,7 @@ onMounted(fetchAll)
       <span class="hero-particle hp4"></span>
 
       <div class="relative z-10 mx-auto max-w-3xl px-4 pb-20 pt-14 text-center sm:pt-20">
-        <h1 class="text-4xl font-extrabold leading-tight text-white sm:text-5xl">JS creator</h1>
+        <h1 class="text-4xl font-extrabold leading-tight text-white sm:text-5xl">Inkwell</h1>
         <p class="mt-4 text-base text-white/75 sm:text-lg">发现优秀博主，阅读优质内容</p>
 
         <!-- 搜索框 -->

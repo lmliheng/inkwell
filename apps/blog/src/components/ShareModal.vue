@@ -69,7 +69,7 @@ function extractExcerpt(content, maxLen = 180) {
 
 const excerpt = computed(() => extractExcerpt(props.article?.content))
 const shareUrl = computed(() => `${window.location.origin}/article/${props.article?.article_id}`)
-const authorName = computed(() => props.article?.author_name || 'JScreator')
+const authorName = computed(() => props.article?.author_name || 'Inkwell')
 const authorAvatar = computed(() => props.article?.author_avatar || '')
 const authorInitial = computed(() => (authorName.value || 'J').trim().charAt(0).toUpperCase())
 
@@ -158,7 +158,7 @@ onMounted(() => {
     <!-- 渲染目标：移出视口，供 html2canvas 绘制（750×1000） -->
     <div ref="cardRef" class="render-target">
       <div class="share-card" :class="'style-' + currentStyle">
-        <div class="card-brand">JScreator</div>
+        <div class="card-brand">Inkwell</div>
         <h2 class="card-title">{{ article.title }}</h2>
         <p class="card-excerpt">{{ excerpt }}</p>
         <div class="card-bottom">
@@ -167,7 +167,7 @@ onMounted(() => {
             <span v-else class="card-avatar card-avatar-fallback">{{ authorInitial }}</span>
             <div class="card-author-info">
               <div class="card-author-name">{{ authorName }}</div>
-              <div class="card-author-site">JScreator 博客</div>
+              <div class="card-author-site">Inkwell 博客</div>
             </div>
           </div>
           <div class="card-qr">
