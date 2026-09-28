@@ -2,6 +2,7 @@
   "name": "jscreator-blog",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "JScreator 博客前端（Vue 3 + Vite + Tailwind CSS 4）",
   "scripts": {

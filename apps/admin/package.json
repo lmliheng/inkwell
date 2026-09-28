@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "框架 Vue3 TS, NaiveUI  ",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

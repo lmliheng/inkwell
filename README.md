@@ -7,6 +7,7 @@
 [![Docker Compose](https://img.shields.io/badge/Docker%20Compose-一条命令起全套-2496ed?logo=docker&logoColor=white)](docs/getting-started.md)
 [![逐接口对照原版](https://img.shields.io/badge/逐接口对照-613%2F613-brightgreen)](docs/testing.md)
 [![release](https://img.shields.io/badge/release-v1.0.2-blue)](https://github.com/lmliheng/inkwell/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 个人内容平台：**一个网关 + 四个业务域微服务 + Nacos 服务发现 + MySQL**，外带两个 Vue 3 前端（后台管理、博客）。
 后端是 [JScreator](https://github.com/lmliheng/JScreator)（Express + TypeScript 单体）的 Spring Cloud 重写版，
@@ -127,4 +128,4 @@ python3 scripts/ref_diff.py --ref http://127.0.0.1:7001 --java http://127.0.0.1:
 
 ## 许可
 
-仓库暂未附许可证文件；用作参考或学习请自行判断，需要正式授权可以开 issue 说一声。
+[MIT](LICENSE) © 2026 lmliheng —— 可自由使用、修改、分发（保留版权与许可声明即可），软件按「原样」提供、不含任何担保。
