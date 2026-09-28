@@ -1,11 +1,12 @@
-# JScreator 后端（Java 微服务版）一键编排
+# Inkwell · 个人内容平台（Spring Cloud 微服务 + Vue 前端）一键编排
 #
-#   docker compose up -d --build     # 首次：构建镜像 + 建库导入 dump + 起 5 个服务
+#   docker compose up -d --build     # 首次：构建镜像 + 建库导入 dump + 起 5 个服务 + 2 个前端
 #   docker compose stop              # 停服务（省内存；数据卷保留，下次 start 即可）
+#   docker compose up -d --build admin-web   # 只重建后台前端
 #   docker compose logs -f auth      # 看某个服务的日志
 #
-# 对外只暴露 gateway（宿主 7000，与原 Node 后端同端口，前端零改动）。
-name: jscreator
+# 对外：gateway（宿主 7000，与原 Node 后端同端口，前端零改动）、后台 admin-web（80）、博客 blog-web（8080）。
+name: inkwell
 
 x-app-build: &app-build
   context: .
@@ -43,7 +44,7 @@ services:
   nacos:
     image: nacos/nacos-server:v2.3.2
     pull_policy: missing
-    container_name: jscreator-nacos
+    container_name: inkwell-nacos
     restart: unless-stopped
     environment:
       MODE: standalone
@@ -61,7 +62,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: jscreator-mysql
+    container_name: inkwell-mysql
     restart: unless-stopped
     command:
       - --innodb-buffer-pool-size=128M
@@ -95,8 +96,8 @@ services:
   # 五个服务共用同一镜像（构建一次），靠 command 选启动哪个 jar
   gateway:
     build: *app-build
-    image: jscreator-app:local
-    container_name: jscreator-gateway
+    image: inkwell-app:local
+    container_name: inkwell-gateway
     restart: unless-stopped
     command: ["gateway"]
     environment:
@@ -112,9 +113,9 @@ services:
     mem_limit: 320m
 
   auth:
-    image: jscreator-app:local
+    image: inkwell-app:local
     pull_policy: never
-    container_name: jscreator-auth
+    container_name: inkwell-auth
     restart: unless-stopped
     command: ["auth"]
     environment:
@@ -128,9 +129,9 @@ services:
     mem_limit: 480m
 
   content:
-    image: jscreator-app:local
+    image: inkwell-app:local
     pull_policy: never
-    container_name: jscreator-content
+    container_name: inkwell-content
     restart: unless-stopped
     command: ["content"]
     environment:
@@ -144,9 +145,9 @@ services:
     mem_limit: 480m
 
   social:
-    image: jscreator-app:local
+    image: inkwell-app:local
     pull_policy: never
-    container_name: jscreator-social
+    container_name: inkwell-social
     restart: unless-stopped
     command: ["social"]
     environment:
@@ -160,9 +161,9 @@ services:
     mem_limit: 420m
 
   system:
-    image: jscreator-app:local
+    image: inkwell-app:local
     pull_policy: never
-    container_name: jscreator-system
+    container_name: inkwell-system
     restart: unless-stopped
     command: ["system"]
     environment:
@@ -179,7 +180,7 @@ services:
   web:
     image: nginx:alpine
     pull_policy: never
-    container_name: jscreator-web
+    container_name: inkwell-web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
@@ -191,5 +192,8 @@ services:
     mem_limit: 64m
 
 volumes:
+  # 显式钉住卷名：改项目名前建的卷叫 jscreator_*，不钉住的话改名后会新建两个空卷、库被重新初始化
   mysql-data:
+    name: jscreator_mysql-data
   nacos-data:
+    name: jscreator_nacos-data

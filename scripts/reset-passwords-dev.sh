@@ -19,7 +19,7 @@ set +a
 HASH=$(printf '%s' "$PW" | sha256sum | cut -d' ' -f1)
 echo "口令 '$PW' 的 SHA-256：$HASH"
 
-docker exec jscreator-mysql mysql -uroot -p"$DB_PASSWORD" "$DB_NAME" -N -e \
+docker exec inkwell-mysql mysql -uroot -p"$DB_PASSWORD" "$DB_NAME" -N -e \
   "UPDATE user SET password='$HASH';
    SELECT CONCAT('已统一 ', COUNT(*), ' 个账号') FROM user WHERE password='$HASH';" 2>/dev/null
 

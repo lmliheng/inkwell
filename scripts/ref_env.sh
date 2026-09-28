@@ -22,7 +22,7 @@ set -a
 . ./.env
 set +a
 
-mysql_exec() { docker exec -i jscreator-mysql mysql -uroot -p"$DB_PASSWORD" "$@" 2>/dev/null; }
+mysql_exec() { docker exec -i inkwell-mysql mysql -uroot -p"$DB_PASSWORD" "$@" 2>/dev/null; }
 
 make_db() {
     local db="${1:-fastweb_m1ref}"

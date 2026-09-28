@@ -10,7 +10,7 @@ echo "== 1/3 本机编译（Java 17 + Maven）=="
 mvn -B -q -DskipTests package
 
 echo "== 2/3 构建运行镜像 =="
-docker build -t jscreator-app:local -f deploy/Dockerfile.runtime .
+docker build -t inkwell-app:local -f deploy/Dockerfile.runtime .
 
 echo "== 3/3 启动/更新容器 =="
 docker compose up -d
