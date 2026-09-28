@@ -92,7 +92,7 @@ async def main():
         if failed:
             print(f"\n❌ {len(failed)} 个页面存在未预期的失败请求")
             return 1
-        print("\n✅ 所有已移植（M1）接口均返回 2xx")
+        print("\n✅ 所有页面接口均返回 2xx")
         return 0
 
 
