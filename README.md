@@ -1,4 +1,6 @@
-# Inkwell · 个人内容平台
+
+<img width="837" height="272" alt="{B422DFAE-9C24-445A-8C48-4A80C1A54D07}" src="https://github.com/user-attachments/assets/0788e3d1-4db2-433e-9774-ac8bd61c341e" />
+
 
 [![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk&logoColor=white)](docs/architecture.md)
 [![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.1-6db33f?logo=spring&logoColor=white)](docs/architecture.md)
@@ -9,9 +11,7 @@
 [![release](https://img.shields.io/badge/release-v1.0.2-blue)](https://github.com/lmliheng/inkwell/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-个人内容平台：**一个网关 + 四个业务域微服务 + Nacos 服务发现 + MySQL**，外带两个 Vue 3 前端（后台管理、博客）。
-后端是 [JScreator](https://github.com/lmliheng/JScreator)（Express + TypeScript 单体）的 Spring Cloud 重写版，
-接口行为按「与原版逐字段一致」验收（**613/613** 用例），一条 `docker compose up -d --build` 把前后端一起起来。
+个人内容平台：**一个网关 + 四个业务域微服务 + Nacos 服务发现 + MySQL**，外带两个 Vue 3 前端（后台管理、博客）。，一条 `docker compose up -d --build` 把前后端一起起来。
 
 > **只想知道怎么跑起来** → [快速开始](#快速开始)（三条命令）/ [docs/getting-started.md](docs/getting-started.md)
 
@@ -101,30 +101,12 @@ python3 scripts/admin_page_probe.py      # 后台九个页面：真实浏览器�
 python3 scripts/blog_page_probe.py       # 博客首页：接口全 2xx、渲染出文章卡片、无 JS 报错
 ```
 
-逐接口对照原 Node 版（判据不是「能跑」，而是「一模一样」）：
-
 ```bash
 bash   scripts/ref_env.sh db  fastweb_ref          # 从完整 dump 建对照库
 bash   scripts/ref_env.sh start fastweb_ref 7001   # 起原版 Node 后端
 python3 scripts/ref_diff.py --ref http://127.0.0.1:7001 --java http://127.0.0.1:7000
 # 最近一次：613/613 一致（M1 214 + M2 251 + M3 139 + M4 9）
 ```
-
-## 已知缺口
-
-- **`POST /upload/image` 的成功分支未实现**：需要阿里云 OSS 的 AccessKey（`OSS_ACCESS_KEY_ID/SECRET`），
-  没配时与原版一样走失败分支；代码不会假装上传成功。
-- **后台「角色管理」页显示 No Data**：前端读 `res.list` 而后端给 `res.data.list`，**对着原 Node 后端也一样空**，是前端自身的问题。
-- **手机端列多的表格偏挤**：只做了布局兜底，次要列还需要横向滚动。
-- **图床前端（IMG）未纳入本仓库**：用户已明确不做。
-
-其余见 [docs/faq.md](docs/faq.md)。
-
-## 名字说明
-
-仓库从 `jscreator-java` 改名而来，「Inkwell」是这一版对外的名字。模块名、包名、Nacos 注册名仍保留
-`jscreator-*` 前缀 —— 它们是已通过 613 项对照的运行时身份（服务名同时写在网关的 `lb://jscreator-auth` 路由里），
-改名牵动的是验证过的链路，收益不划算。
 
 ## 许可
 
