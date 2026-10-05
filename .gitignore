@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+!.mvn/wrapper/*.jar
+.env
+.idea/
+*.iml
+.vscode/
+__pycache__/
+
+# 前端（apps/admin、apps/blog）：依赖与构建产物都在容器里生成，不入库
+apps/*/node_modules/
+apps/*/dist/

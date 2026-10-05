@@ -1,0 +1,23 @@
+# 镜像只需要 jar / 前端源码 / 启动脚本，其余一概不要进上下文
+#
+# 注意：**不能忽略 **/src/ **。构建上下文是共享的，deploy/Dockerfile.runtime 要 target 里的 jar，
+# 而 deploy/Dockerfile.app（容器内编译）要各模块的 src；Docker 20.10 的默认 builder 不支持
+# 「按 Dockerfile 分开的 .dockerignore」，所以两边都要放行。
+.git
+.gitignore
+.env
+.env.example
+README.md
+PLAN.md
+docs/
+scripts/
+deploy/mysql/
+apps/**/node_modules/
+apps/**/dist/
+**/target/classes/
+**/target/*.original
+**/target/test-classes/
+**/target/maven-archiver/
+**/target/surefire-reports/
+**/target/generated-sources/
+**/target/generated-test-sources/

@@ -1,0 +1,19 @@
+# 运行镜像：只装 jar，不在容器里编译。
+#
+# 为什么：本机 2 核，容器内再跑一遍 Maven（下载依赖 + 编译 5 个模块）要十几分钟且容易被中断。
+# 编译在本机做一次（mvn -DskipTests package），镜像构建就只剩拷贝 + 拉 JRE，几秒钟的事。
+# 需要「从零可复现构建」时用 deploy/Dockerfile.app（多阶段，容器内编译）。
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+
+COPY jscreator-gateway/target/jscreator-gateway-1.0.0.jar /app/gateway.jar
+COPY jscreator-auth/target/jscreator-auth-1.0.0.jar       /app/auth.jar
+COPY jscreator-content/target/jscreator-content-1.0.0.jar /app/content.jar
+COPY jscreator-social/target/jscreator-social-1.0.0.jar   /app/social.jar
+COPY jscreator-system/target/jscreator-system-1.0.0.jar   /app/system.jar
+
+COPY deploy/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+EXPOSE 8088
+ENTRYPOINT ["/app/entrypoint.sh"]

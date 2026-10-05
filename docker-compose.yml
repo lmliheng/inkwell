@@ -1,0 +1,221 @@
+# Inkwell · 个人内容平台（Spring Cloud 微服务 + Vue 前端）一键编排
+#
+#   docker compose up -d --build     # 首次：构建镜像 + 建库导入种子 SQL + 起 5 个服务 + 2 个前端
+#   docker compose stop              # 停服务（省内存；数据卷保留，下次 start 即可）
+#   docker compose up -d --build admin-web   # 只重建后台前端
+#   docker compose logs -f auth      # 看某个服务的日志
+#
+# 只装了 Docker、没有 JDK/Maven：APP_DOCKERFILE=deploy/Dockerfile.app docker compose up -d --build
+# （在容器里编译后端，首次会下载 Maven 依赖，慢一些）
+#
+# 对外：gateway（宿主 7000，与原 Node 后端同端口，前端零改动）、后台 admin-web（80）、博客 blog-web（8080）。
+name: inkwell
+
+x-app-build: &app-build
+  context: .
+  # 默认用运行镜像：本机先 `mvn -DskipTests package`，镜像构建只剩拷贝，几秒钟完成。
+  # 没装 JDK/Maven 就换成多阶段构建（容器里编译，首次要下依赖、慢一些）：
+  #   APP_DOCKERFILE=deploy/Dockerfile.app docker compose up -d --build
+  dockerfile: ${APP_DOCKERFILE:-deploy/Dockerfile.runtime}
+
+x-app-env: &app-env
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_NAME: ${DB_NAME:-fastweb_test}
+  DB_USER: ${DB_USER:-root}
+  DB_PASSWORD: ${DB_PASSWORD:?请在项目根目录 .env 里设置 DB_PASSWORD}
+  JWT_SECRET: ${JWT_SECRET:?请在项目根目录 .env 里设置 JWT_SECRET}
+  FRONTEND_URLS: ${FRONTEND_URLS:-http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8085,http://localhost:8085}
+  # 服务注册/发现：网关按 lb://<服务名> 路由，服务启动时注册到这里
+  NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+  TZ: Asia/Shanghai
+  # 外部服务（M1 邮件/GitHub、M2 图片上传）。留空时与原版一致：走失败分支，不影响其余接口。
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-}
+  SMTP_SECURE: ${SMTP_SECURE:-}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  FROM_EMAIL: ${FROM_EMAIL:-}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+  GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+  OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+  OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+
+services:
+  # 注册中心 / 配置中心。单机 standalone 模式用内嵌 Derby 存数据，不额外依赖 MySQL。
+  # 控制台与 gRPC 端口只绑本机（8848 控制台；9848/9849 是 2.x 的 gRPC，容器之间走 compose 网络）。
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    pull_policy: missing
+    container_name: inkwell-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      # 只在内网 compose 网络里提供注册服务，不对外暴露控制台，因此关掉鉴权
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${NACOS_PORT:-8848}:8848"
+    volumes:
+      - nacos-data:/home/nacos/data
+    mem_limit: 900m
+
+  mysql:
+    image: mysql:8.0
+    container_name: inkwell-mysql
+    restart: unless-stopped
+    command:
+      - --innodb-buffer-pool-size=128M
+      - --max-connections=80
+      - --performance-schema=OFF
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      # 2M（默认 256K）：博客列表这类「GROUP BY 含 TEXT 列 + ORDER BY」的查询，
+      # 在统计信息不准时优化器会选到耗内存的计划，256K 直接报 1038 Out of sort memory。
+      # 实测 512K 即够，这里留余量；sort buffer 是按连接分配的，5 个服务各 5 条连接，
+      # 最坏 25 × 2M = 50M，仍在 mysql 容器 512M 的预算内。
+      - --sort-buffer-size=2M
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请在项目根目录 .env 里设置 DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-fastweb_test}
+      TZ: Asia/Shanghai
+    ports:
+      # 只绑本机，别把 3306 暴露到公网
+      - "127.0.0.1:${MYSQL_PORT:-3308}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 512m
+
+  # 五个服务共用同一镜像（构建一次），靠 command 选启动哪个 jar
+  gateway:
+    build: *app-build
+    image: inkwell-app:local
+    container_name: inkwell-gateway
+    restart: unless-stopped
+    command: ["gateway"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx160m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -Xss512k"
+    ports:
+      - "${APP_PORT:-7000}:8088"
+    depends_on:
+      nacos:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    mem_limit: 320m
+
+  auth:
+    image: inkwell-app:local
+    pull_policy: never
+    container_name: inkwell-auth
+    restart: unless-stopped
+    command: ["auth"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      nacos:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    mem_limit: 480m
+
+  content:
+    image: inkwell-app:local
+    pull_policy: never
+    container_name: inkwell-content
+    restart: unless-stopped
+    command: ["content"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      nacos:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    mem_limit: 480m
+
+  social:
+    image: inkwell-app:local
+    pull_policy: never
+    container_name: inkwell-social
+    restart: unless-stopped
+    command: ["social"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx224m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      nacos:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    mem_limit: 420m
+
+  system:
+    image: inkwell-app:local
+    pull_policy: never
+    container_name: inkwell-system
+    restart: unless-stopped
+    command: ["system"]
+    environment:
+      <<: *app-env
+      JAVA_TOOL_OPTIONS: "-Xmx192m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k"
+    depends_on:
+      nacos:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    mem_limit: 380m
+
+  # 后台前端：apps/admin 源码在容器里构建（node → vite build），产物由 nginx 托管并反代 /api
+  admin-web:
+    build:
+      context: ./apps/admin
+    image: inkwell-admin:local
+    container_name: inkwell-admin
+    restart: unless-stopped
+    environment:
+      # 后台来源白名单（分号分隔的 IP/CIDR），由容器启动脚本展开成 nginx 的 allow 列表。
+      # 默认只放行本机与 docker 私网段；自己的出口 IP 写在 .env 里，不进公开仓库。
+      ADMIN_ALLOW_HOSTS: ${ADMIN_ALLOW_HOSTS:-127.0.0.1;::1;172.16.0.0/12}
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - gateway
+    mem_limit: 64m
+
+  # 博客前端：同上，对外站点，不设来源白名单
+  blog-web:
+    build:
+      context: ./apps/blog
+      args:
+        # 「进入后台」链接的目标，换域名时改 .env 里的 ADMIN_URL
+        VITE_ADMIN_ADDRESS: ${ADMIN_URL:-http://127.0.0.1/}
+    image: inkwell-blog:local
+    container_name: inkwell-blog
+    restart: unless-stopped
+    ports:
+      - "${BLOG_PORT:-8080}:80"
+    depends_on:
+      - gateway
+    mem_limit: 64m
+
+volumes:
+  # 显式钉住卷名：改项目名前建的卷叫 jscreator_*，不钉住的话改名后会新建两个空卷、库被重新初始化
+  mysql-data:
+    name: jscreator_mysql-data
+  nacos-data:
+    name: jscreator_nacos-data

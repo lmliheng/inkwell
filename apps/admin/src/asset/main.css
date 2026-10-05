@@ -1,0 +1,137 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+}
+
+#app {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+@font-face {
+    font-family: 'logo-cn';
+    src: url('@/font/ZCOOLKuaiLe-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    /* 优化加载显示 */
+
+    font-family: 'logo-en';
+    src: url('@/font/G8321-Bold.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ======================= 响应式：窄屏（手机，≤768px） =======================
+   后台页面几乎都是 element-plus（el-row/el-col、el-table、el-dialog），窄屏下
+   就三类毛病：栅格被挤成一列一列的文字、弹窗宽度写死超出屏幕、工具条不换行把内容顶出去。
+   这里集中兜住；页面自己 scoped 样式优先级更高，所以一律 !important 覆盖。
+   更细的页面级调整（比如个人主页的横幅）写在各自组件的 @media 里。 */
+@media (max-width: 768px) {
+    /* 1) 栅格：正文一律单列（含弹窗里的 el-col-12 表单对），统计卡（span=6）保持两列 */
+    .el-col-6 {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+    }
+
+    .el-col-8,
+    .el-col-9,
+    .el-col-10,
+    .el-col-12,
+    .el-col-14,
+    .el-col-16,
+    .el-col-18,
+    .el-col-20 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* 2) 弹窗/消息框/抽屉不超出视口 */
+    .el-dialog {
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        margin: 6vh auto 16px !important;
+    }
+
+    .el-dialog__header {
+        padding: 14px 16px 10px;
+    }
+
+    .el-dialog__body {
+        padding: 12px 16px;
+    }
+
+    .el-message-box {
+        width: calc(100vw - 32px) !important;
+        max-width: calc(100vw - 32px) !important;
+    }
+
+    .el-drawer {
+        width: calc(100vw - 40px) !important;
+    }
+
+    /* 3) 工具条换行：搜索框/筛选器占满一行，按钮自动换到下一行 */
+    .toolbar,
+    .toolbar-filters,
+    .toolbar-actions,
+    .setting-toolbar,
+    .pagination {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    .toolbar .el-input,
+    .toolbar-filters .el-input,
+    .toolbar-filters .el-select,
+    .toolbar-filters .el-date-editor {
+        width: 100% !important;
+    }
+
+    .toolbar-actions {
+        justify-content: flex-start !important;
+    }
+
+    /* 4) 卡片内边距收紧，表格缩小字号（列宽超过屏幕时 element-plus 自己出横向滚动条） */
+    .el-card__header {
+        padding: 12px 14px !important;
+    }
+
+    .el-card__body {
+        padding: 14px !important;
+    }
+
+    .el-table {
+        font-size: 13px;
+    }
+
+    /* 表格列宽不够时 element-plus 自己出横向滚动条；这里不强行禁止换行——
+       长文本（文章标题、公告正文）在手机上靠换行才看得全。嫌列挤的页面
+       自己按需隐藏次要列即可（见 README「手机端」一节）。 */
+
+    /* 5) 分页居中、描述列表不撑破卡片 */
+    .pagination {
+        justify-content: center !important;
+    }
+
+    .el-descriptions__body {
+        overflow-x: auto;
+    }
+
+    /* 6) 长代码/密钥块自己横向滚动，不把卡片顶宽 */
+    pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    pre code,
+    .el-card code {
+        word-break: break-all;
+    }
+}

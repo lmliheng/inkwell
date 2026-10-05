@@ -1,0 +1,59 @@
+{
+  "name": "后台管理",
+  "version": "1.0.0",
+  "description": "框架 Vue3 TS, NaiveUI  ",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "prepare": "cypress install",
+    "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
+    "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@sentry/vue": "^10.74.0",
+    "@toast-ui/editor": "^3.2.2",
+    "@vicons/ionicons5": "^0.13.0",
+    "@vueuse/core": "^14.4.0",
+    "axios": "^1.15.2",
+    "driver.js": "^1.4.0",
+    "element-plus": "^2.13.7",
+    "naive-ui": "^2.45.3",
+    "pinia": "^4.0.2",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "qrcode": "^1.5.4",
+    "screenfull": "^6.0.2",
+    "sortablejs": "^1.15.7",
+    "vue": "^3.5.40",
+    "vue-i18n": "^11.4.0",
+    "vue-router": "^5.2.0",
+    "vue3-print-nb": "^0.1.4"
+  },
+  "devDependencies": {
+    "@tsconfig/node24": "^24.0.4",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.4.11",
+    "@vue/tsconfig": "^0.9.1",
+    "cypress": "^15.18.1",
+    "jsdom": "^29.1.1",
+    "npm-run-all2": "^9.0.2",
+    "start-server-and-test": "^3.0.11",
+    "typescript": "~6.0.0",
+    "vite": "^8.1.5",
+    "vite-plugin-vue-devtools": "^8.1.5",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.7"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.12.0"
+  }
+}

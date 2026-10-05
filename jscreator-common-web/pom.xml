@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jscreator</groupId>
+        <artifactId>jscreator-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>jscreator-common-web</artifactId>
+    <name>jscreator-common-web</name>
+    <description>Servlet 栈公共件：鉴权拦截器、@RequireLogin/@RequireAdmin、统一异常处理（网关不引本模块）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.jscreator</groupId>
+            <artifactId>jscreator-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+    </dependencies>
+</project>
